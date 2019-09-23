@@ -4,9 +4,14 @@
 #include <map>
 using namespace std;
 
-string line;
+string line;        // guarda uma linha do codigo fonte
+int position = 0;   // conta a posicao da linha no codigo fonte
+int address = 0;    // conta a posicao de memoria do token
+
 enum OPCODE {zero, ADD, SUB, MULT, DIV, JMP, JMPN, JMPP, JMPZ, COPY, LOAD, STORE, INPUT, OUTPUT, STOP};
+enum DIRECTIVE {dzero, SECTION, SPACE, dCONST, EQU, dIF};
 static map<string, OPCODE> mapOP;
+static map<string, DIRECTIVE> mapDIR;
 
 void stringSwitch () {
     mapOP["ADD"] = ADD;
@@ -23,15 +28,21 @@ void stringSwitch () {
     mapOP["INPUT"] = INPUT;
     mapOP["OUTPUT"] = OUTPUT;
     mapOP["STOP"] = STOP;
+    mapDIR["SECTION"] = SECTION;
+    mapDIR["SPACE"] = SPACE;
+    mapDIR["CONST"] = dCONST;
+    mapDIR["EQU"] = EQU;
+    mapDIR["IF"] = dIF;
 }
 
 void decode () {
     istringstream tokenizer {line};
     string token;
-    stringSwitch();
+    position++;
 
     while (tokenizer >> token) {
         // cout << token << endl;
+
         switch ( mapOP[token] ) {
             case ADD:       cout << token << endl;
                             break;
@@ -61,12 +72,23 @@ void decode () {
                             break;
             case STOP:      cout << token << endl;
                             break;
-            default:        break;
+            default:
+                if ( token[ token.size()-1 ] == ':') {
+                    cout << address << ' ' << token << endl;
+                    address++; // precisa ajustar para space
+                }
+                else if (token[0] == ';') {
+                    // aqui o endereco nao pode contar
+                    while (tokenizer >> token);
+                }
+                break;
         }
     }
 }
 
 int main () {
+    stringSwitch();
+
     ifstream file ("bin.asm");
     if ( file.is_open() ) {
         while ( !file.eof() ) {
@@ -77,4 +99,7 @@ int main () {
         file.close();
     }
     else cout << "fail";
+
+    // cout << position << endl;
+    return 0;
 }
