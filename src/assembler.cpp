@@ -110,7 +110,7 @@ void decode (string* file_name) {
 int main () {
     stringSwitch();
 
-    string file_name = "bin.asm"; // essa string depois vai ser o argumento iniciado junto ao programa na linha de comando
+    string file_name = "testing.asm"; // essa string depois vai ser o argumento iniciado junto ao programa na linha de comando
 
     ifstream file (file_name);    
     if ( file.is_open() ) {
