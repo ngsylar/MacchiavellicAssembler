@@ -8,32 +8,38 @@ string line;            // guarda uma linha do codigo fonte
 int line_number = 0;    // conta a posicao da linha no codigo fonte
 int address = 0;        // conta a posicao de memoria do token
 
-enum OPCODE {zero, ADD, SUB, MULT, DIV, JMP, JMPN, JMPP, JMPZ, COPY, LOAD, STORE, INPUT, OUTPUT, STOP};
-enum DIRECTIVE {dzero, SECTION, SPACE, dCONST, EQU, dIF};
-static map<string, OPCODE> mapOP;
-static map<string, DIRECTIVE> mapDIR;
+enum e_OPCODE {ADD=1, SUB, MULT, DIV, JMP, JMPN, JMPP, JMPZ, COPY, LOAD, STORE, INPUT, OUTPUT, STOP};
+enum e_DIRECTIVE {d_SECTION=1, d_SPACE, d_CONST, d_EQU, d_IF};
+enum e_SECTION {s_TEXT=1, s_DATA};
+static map<string, e_OPCODE> OPCODE;
+static map<string, e_DIRECTIVE> DIRECTIVE;
+static map<string, e_SECTION> SECTION;
 
 // mapeia strings para serem usadas na estrutura condicional switch
 void stringSwitch () {
-    mapOP["ADD"] = ADD;
-    mapOP["SUB"] = SUB;
-    mapOP["MULT"] = MULT;
-    mapOP["DIV"] = DIV;
-    mapOP["JMP"] = JMP;
-    mapOP["JMPN"] = JMPN;
-    mapOP["JMPP"] = JMPP;
-    mapOP["JMPZ"] = JMPZ;
-    mapOP["COPY"] = COPY;
-    mapOP["LOAD"] = LOAD;
-    mapOP["STORE"] = STORE;
-    mapOP["INPUT"] = INPUT;
-    mapOP["OUTPUT"] = OUTPUT;
-    mapOP["STOP"] = STOP;
-    mapDIR["SECTION"] = SECTION;
-    mapDIR["SPACE"] = SPACE;
-    mapDIR["CONST"] = dCONST;
-    mapDIR["EQU"] = EQU;
-    mapDIR["IF"] = dIF;
+    OPCODE["ADD"]       = ADD;
+    OPCODE["SUB"]       = SUB;
+    OPCODE["MULT"]      = MULT;
+    OPCODE["DIV"]       = DIV;
+    OPCODE["JMP"]       = JMP;
+    OPCODE["JMPN"]      = JMPN;
+    OPCODE["JMPP"]      = JMPP;
+    OPCODE["JMPZ"]      = JMPZ;
+    OPCODE["COPY"]      = COPY;
+    OPCODE["LOAD"]      = LOAD;
+    OPCODE["STORE"]     = STORE;
+    OPCODE["INPUT"]     = INPUT;
+    OPCODE["OUTPUT"]    = OUTPUT;
+    OPCODE["STOP"]      = STOP;
+
+    DIRECTIVE["SECTION"]    = d_SECTION;
+    DIRECTIVE["SPACE"]      = d_SPACE;
+    DIRECTIVE["CONST"]      = d_CONST;
+    DIRECTIVE["EQU"]        = d_EQU;
+    DIRECTIVE["IF"]         = d_IF;
+    
+    SECTION["TEXT"] = s_TEXT;
+    SECTION["DATA"] = s_DATA;
 }
 
 // analise lexica: verifica validade dos rotulos inseridos no codigo fonte
@@ -59,7 +65,8 @@ void check_label (string* file_name, string label) {
     }
 }
 
-void decode (string* file_name) {
+// passagem unica
+void onepass (string* file_name) {
     istringstream tokenizer {line};
     string token;
     line_number++;
@@ -67,7 +74,7 @@ void decode (string* file_name) {
     while (tokenizer >> token) {
         // cout << token << endl;
 
-        switch ( mapOP[token] ) {
+        switch ( OPCODE[token] ) {
             case ADD:       // cout << token << endl;
                             break;
             case SUB:       // cout << token << endl;
@@ -112,17 +119,48 @@ void decode (string* file_name) {
     }
 }
 
+// pre-processamento
+void preprocessing (string* file_name) {
+    istringstream tokenizer {line};
+    string token;
+    line_number++;
+
+    while (tokenizer >> token) {
+        // cout << token << endl;
+
+        switch ( DIRECTIVE[token] ) {
+            case d_SECTION:
+                tokenizer >> token;
+                switch ( SECTION[token] ) {
+                    case s_TEXT: break;
+                    case s_DATA: break;
+                } break;
+            case d_SPACE:   // cout << token << endl;
+                            break;
+            case d_CONST:   // cout << token << endl;
+                            break;
+            case d_EQU:     // cout << token << endl;
+                            break;
+            case d_IF:      // cout << token << endl;
+                            break;
+            default:
+                break;
+        }
+    }
+}
+
 int main () {
     stringSwitch();
 
     string file_name = "testing.asm"; // essa string depois vai ser o argumento iniciado junto ao programa na linha de comando
 
-    ifstream file (file_name);    
+    ifstream file (file_name);
     if ( file.is_open() ) {
         while ( !file.eof() ) {
-            getline (file, line);
+            getline (file, line);                   // le linha do codigo fonte
             for (auto & c: line) c = toupper(c);    // retira sensibilidade ao caso
-            decode (&file_name);
+            preprocessing (&file_name);             // realiza o pre-processamento
+            // onepass (&file_name); // vai precisar entrar em outro laco fora deste, usando como arquivo fonte o codigo pre processado
             // cout << line << endl;
         }
         file.close();
