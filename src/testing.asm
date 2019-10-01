@@ -7,7 +7,7 @@ MULT DOIS
 STORE TMP_DATA
 LOAD OLD_DATA
 SUB TMP_DATA
-STORE TMP_DATA
+STORE TMP_DATA ;pedro
 OUTPUT TMP_DATA
 COPY NEW_DATA,OLD_DATA
 LOAD OLD_DATA ;testinho teste
@@ -24,7 +24,7 @@ umtestebacanabembananaparatestarseissofuncionacarau: SPACE
 cag@$o: space
 mey_av: space
 _mey_av: space
-__meyav: space
+__meyav: blobsky: space
 meyav_: space
 cag%$o: const 3
 g00ai: const 2
