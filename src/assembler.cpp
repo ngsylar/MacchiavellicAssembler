@@ -13,6 +13,7 @@ enum DIRECTIVE {dzero, SECTION, SPACE, dCONST, EQU, dIF};
 static map<string, OPCODE> mapOP;
 static map<string, DIRECTIVE> mapDIR;
 
+// mapeia strings para serem usadas na estrutura condicional switch
 void stringSwitch () {
     mapOP["ADD"] = ADD;
     mapOP["SUB"] = SUB;
@@ -35,16 +36,20 @@ void stringSwitch () {
     mapDIR["IF"] = dIF;
 }
 
+// analise lexica: verifica validade dos rotulos inseridos no codigo fonte
 void check_label (string* file_name, string label) {
+    // se o primeiro caractere for um numero: erro
     if ((label[0] >= 48) && (label[0] <= 57)) {
         cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
         cout << "lexicon error: label \"" << label << "\" starts with a number" << endl;
     }
+    // se o rotulo eh maior que 50 caracteres: erro
     if (label.size() > 50) {
         cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
         cout << "lexicon error: label is longer than 50 characters:" << endl;
         cout << "\t\"" << label << "\"" << endl;
     }
+    // se o rotulo nao eh composto apenas por letras, numeros e underscore: erro
     for (unsigned int i = 0; i < label.size(); i++) {
         if ((label[i] != 95) && (!((label[i] >= 48) && (label[i] <= 57)) && !((label[i] >= 65) && (label[i] <= 90)))) {
             cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
@@ -116,13 +121,13 @@ int main () {
     if ( file.is_open() ) {
         while ( !file.eof() ) {
             getline (file, line);
-            for (auto & c: line) c = toupper(c);
+            for (auto & c: line) c = toupper(c);    // retira sensibilidade ao caso
             decode (&file_name);
             // cout << line << endl;
         }
         file.close();
     }
-    else cout << "ERROR: File not found!";
+    else cout << endl << "ERROR: File not found!";
 
     // cout << line_number << endl;
     return 0;
