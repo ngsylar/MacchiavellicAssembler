@@ -4,21 +4,6 @@
 #include <map>
 using namespace std;
 
-class Table {
-    string orig;
-    string dest;
-    Table* c_next = NULL;
-
-    public:
-        Table (string orig, string dest) {
-            this->orig = orig;
-            this->dest = dest;
-        }
-
-        string label()      {return orig;}
-        string synonym()    {return dest;}
-};
-
 // criar class position: relacionar numero da linha do arquivo preprocessado com o arquivo fonte
 
 string line;            // guarda uma linha do codigo fonte
@@ -59,42 +44,82 @@ void stringSwitch () {
     SECTION["DATA"] = s_DATA;
 }
 
-// analise lexica: verifica validade dos rotulos inseridos no codigo fonte
-void check_label (string* file_name, string label, istringstream* tokenizer, string* token) {
+// ainda escrevendo :P
+class Table {
+    string orig;
+    string dest;
+    Table* c_next = NULL;
 
-    // se label for igual a uma instrucao ou diretiva
-    if (((OPCODE[label] >= 1) && (OPCODE[label] <= 14)) || ((DIRECTIVE[label] >= 1) && (DIRECTIVE[label] <= 5)) || ((SECTION[label] >= 1) && (SECTION[label] <= 2))) {
-        cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-        cout << "? error: invalid label (\"" << label << "\" is a reserved word)" << endl;
-    }
-    // se o primeiro caractere for um numero: erro
-    if ((label[0] >= 48) && (label[0] <= 57)) {
-        cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-        cout << "lexicon error: label \"" << label << "\" starts with a number" << endl;
-    }
-    // se o rotulo eh maior que 50 caracteres: erro
-    if (label.size() > 50) {
-        cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-        cout << "lexicon error: label is longer than 50 characters:" << endl;
-        cout << "\t\"" << label << "\"" << endl;
-    }
-    // se o rotulo nao eh composto apenas por letras, numeros e underscore: erro
-    for (unsigned int i = 0; i < label.size(); i++) {
-        if ((label[i] != 95) && (!((label[i] >= 48) && (label[i] <= 57)) && !((label[i] >= 65) && (label[i] <= 90)))) {
-            cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-            cout << "lexicon error: label \"" << label << "\" is not just letters, numbers or \"_\" (underscore)" << endl;
-            break;
+    public:
+        Table (string orig, string dest) {
+            this->orig = orig;
+            this->dest = dest;
         }
-    }
-    // verifica se ha mais de um label na mesma linha
-    *tokenizer >> *token;
-    if (token->back() == ':') {
-        cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-        cout << "syntactic error: more than one label on the same line" << endl;
-        do { *tokenizer >> *token;
-        } while (token->back() == ':');
-    }
-}
+
+        string label()      {return orig;}
+        string synonym()    {return dest;}
+};
+
+class Analyze {
+    string label;
+
+    public:
+        // escreve ou retorna o rotulo
+        void set (string label) { this->label = label; }
+        string content ()       { return label; }
+
+        // verifica ou exclui o conteudo do rotulo
+        int empty ()    { return label.empty(); }
+        void clear ()   { label.clear(); }
+
+        // analise sintatica: verifica se ha mais de um rotulo na mesma linha
+        int check_duplicate (istringstream* tokenizer, string* token) {
+            *tokenizer >> *token;                   // pega o proximo token
+            if (token->back() == ':') {             // se token for rotulo entao
+                do {
+                    token->pop_back();              // descarta ':'
+                    label = *token;                 // rotulo recebe token
+                    *tokenizer >> *token;           // pega proximo token
+                } while (token->back() == ':');     // repetir laco enquanto token for rotulo
+                return 1;                           // retorna 1 se houver mais de um rotulo
+            } else
+                return 0;                           // se nao, retorna 0
+        }
+
+        // analise lexica: verifica validade dos rotulos inseridos no codigo fonte
+        void check (string* file_name, istringstream* tokenizer, string* token) {
+
+            // se label for igual a uma instrucao ou diretiva
+            if (((OPCODE[label] >= 1) && (OPCODE[label] <= 14)) || ((DIRECTIVE[label] >= 1) && (DIRECTIVE[label] <= 5)) || ((SECTION[label] >= 1) && (SECTION[label] <= 2))) {
+                cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+                cout << "? error: invalid label (\"" << label << "\" is a reserved word)" << endl;
+            }
+            // se o primeiro caractere for um numero: erro
+            if ((label.front() >= 48) && (label.front() <= 57)) {
+                cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+                cout << "lexicon error: label \"" << label << "\" starts with a number" << endl;
+            }
+            // se o rotulo eh maior que 50 caracteres: erro
+            if (label.size() > 50) {
+                cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+                cout << "lexicon error: label is longer than 50 characters:" << endl;
+                cout << "\t\"" << label << "\"" << endl;
+            }
+            // se o rotulo nao eh composto apenas por letras, numeros e underscore: erro
+            for (unsigned int i = 0; i < label.size(); i++) {
+                if ((label[i] != 95) && (!((label[i] >= 48) && (label[i] <= 57)) && !((label[i] >= 65) && (label[i] <= 90)))) {
+                    cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+                    cout << "lexicon error: label \"" << label << "\" is not just letters, numbers or underscore" << endl;
+                    break;
+                }
+            }
+            // entra na analise sintatica: verifica se ha mais de um rotulo na mesma linha
+            if (check_duplicate (tokenizer, token)) {
+                cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+                cout << "syntactic error: more than one label on the same line" << endl;
+            }
+        }
+};
 
 // passagem unica
 void onepass (string* file_name) {
@@ -155,7 +180,9 @@ void onepass (string* file_name) {
                 if ( token.back() == ':' ) {
                     // cout << address << ' ' << token << endl;
                     token.pop_back();
-                    check_label(file_name, token, &tokenizer, &token);
+                    static Analyze label;
+                    label.set(token);
+                    label.check (file_name, &tokenizer, &token);
                     address++; // precisa ajustar para space
                 }
                 break;
@@ -165,26 +192,28 @@ void onepass (string* file_name) {
 
 // pre-processamento
 void preprocessing (string* file_name) {
+    Analyze label;
     istringstream tokenizer {line};
-    string token, label;
+    string token;
     line_number++;
 
     while (tokenizer >> token) {
         // cout << token << endl;
 
-        // se token for rotulo, analisar
+        // se houver rotulos repetidos, pular para o ultimo
         if (token.back() == ':') {
             token.pop_back();
-            label = token;
-            check_label(file_name, label, &tokenizer, &token);
+            label.set (token);
+            label.check_duplicate (&tokenizer, &token);
         }
-        // decidir quem vai analisar rotulos, preprocessamento ou passagem um
-
+        
+        // analisa o token (o token seguinte ao rotulo, se existir rotulo)
         switch ( DIRECTIVE[ token ] ) {
-
-            case d_EQU: // lembrar que o rotulo pode vir em uma linha diferente
+            case d_EQU: // nota: lembrar que o rotulo pode vir em uma linha diferente
                 if (!label.empty()) {
-                    static Table equal(token, label);
+                    label.check (file_name, &tokenizer, &token);
+                    static Table equal (token, label.content());
+                    // cout << label.content() << endl;
                     label.clear();
                 } else {
                     cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
