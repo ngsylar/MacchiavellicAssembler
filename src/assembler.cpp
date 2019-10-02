@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <queue>
 #include <map>
 using namespace std;
 
@@ -9,6 +10,9 @@ using namespace std;
 string line;            // guarda uma linha do codigo fonte
 int line_number = 0;    // conta a posicao da linha no codigo fonte
 int address = 0;        // conta a posicao de memoria do token
+
+// class Counter {
+// };
 
 enum e_OPCODE {ADD=1, SUB, MULT, DIV, JMP, JMPN, JMPP, JMPZ, COPY, LOAD, STORE, INPUT, OUTPUT, STOP};
 enum e_DIRECTIVE {d_SECTION=1, d_SPACE, d_CONST, d_EQU, d_IF};
@@ -44,88 +48,88 @@ void stringSwitch () {
     SECTION["DATA"] = s_DATA;
 }
 
-// ainda escrevendo :P
-class Table {
-    string orig;
-    string dest;
-    Table* c_next = NULL;
-
+// classe para relacionar tokens
+class Link {
     public:
-        Table (string orig, string dest) {
-            this->orig = orig;
-            this->dest = dest;
-        }
+    string symbol;      // identificador ou rotulo
+    string value;       // sinonimo ou simbolo
 
-        string label()      {return orig;}
-        string synonym()    {return dest;}
+    Link (string symbol, string value) {
+        this->symbol = symbol;
+        this->value = value;
+    }
 };
 
 class Analyze {
-    string label;
-
     public:
-        // escreve ou retorna o rotulo
-        void set (string label) { this->label = label; }
-        string content ()       { return label; }
+    string content;
+    
+    // conteudo recebe token
+    void operator= (string token) {
+        content = token;
+    }
 
-        // verifica ou exclui o conteudo do rotulo
-        int empty ()    { return label.empty(); }
-        void clear ()   { label.clear(); }
+    // verifica ou exclui conteudo do objeto
+    int empty ()    { return content.empty(); }
+    void clear ()   { content.clear(); }
 
-        // analise sintatica: verifica se ha mais de um rotulo na mesma linha
-        int check_duplicate (istringstream* tokenizer, string* token) {
-            *tokenizer >> *token;                   // pega o proximo token
-            if (token->back() == ':') {             // se token for rotulo entao
-                do {
-                    token->pop_back();              // descarta ':'
-                    label = *token;                 // rotulo recebe token
-                    *tokenizer >> *token;           // pega proximo token
-                } while (token->back() == ':');     // repetir laco enquanto token for rotulo
-                return 1;                           // retorna 1 se houver mais de um rotulo
-            } else
-                return 0;                           // se nao, retorna 0
+    // analise: verifica se ha mais de um rotulo na mesma linha
+    int check_duplicate (istringstream* tokenizer, string* token) {
+        string* label = &content;
+
+        *tokenizer >> *token;                   // pega o proximo token
+        if (token->back() == ':') {             // se token for rotulo entao
+            do {
+                token->pop_back();              // descarta ':'
+                *label = *token;                // rotulo recebe token
+                *tokenizer >> *token;           // pega proximo token
+            } while (token->back() == ':');     // repetir laco enquanto token for rotulo
+            return 1;                           // retorna 1 se houver mais de um rotulo
+        } else
+            return 0;                           // se nao, retorna 0
+    }
+
+    // analise: verifica validade dos rotulos inseridos no codigo fonte
+    void check (string* file_name, istringstream* tokenizer, string* token) {
+        string label = content;
+
+        // se label for igual a uma instrucao ou diretiva
+        if (((OPCODE[label] >= 1) && (OPCODE[label] <= 14)) || ((DIRECTIVE[label] >= 1) && (DIRECTIVE[label] <= 5)) || ((SECTION[label] >= 1) && (SECTION[label] <= 2))) {
+            cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+            cout << "semantic error: invalid label (\"" << label << "\" is a reserved word)" << endl;
         }
-
-        // analise lexica: verifica validade dos rotulos inseridos no codigo fonte
-        void check (string* file_name, istringstream* tokenizer, string* token) {
-
-            // se label for igual a uma instrucao ou diretiva
-            if (((OPCODE[label] >= 1) && (OPCODE[label] <= 14)) || ((DIRECTIVE[label] >= 1) && (DIRECTIVE[label] <= 5)) || ((SECTION[label] >= 1) && (SECTION[label] <= 2))) {
+        // se o primeiro caractere for um numero: erro
+        if ((label.front() >= 48) && (label.front() <= 57)) {
+            cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+            cout << "lexicon error: label \"" << label << "\" starts with a number" << endl;
+        }
+        // se o rotulo eh maior que 50 caracteres: erro
+        if (label.size() > 50) {
+            cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+            cout << "lexicon error: label is longer than 50 characters:" << endl;
+            cout << "\t\"" << label << "\"" << endl;
+        }
+        // se o rotulo nao eh composto apenas por letras, numeros e underscore: erro
+        for (unsigned int i = 0; i < label.size(); i++) {
+            if ((label[i] != 95) && (!((label[i] >= 48) && (label[i] <= 57)) && !((label[i] >= 65) && (label[i] <= 90)))) {
                 cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-                cout << "? error: invalid label (\"" << label << "\" is a reserved word)" << endl;
-            }
-            // se o primeiro caractere for um numero: erro
-            if ((label.front() >= 48) && (label.front() <= 57)) {
-                cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-                cout << "lexicon error: label \"" << label << "\" starts with a number" << endl;
-            }
-            // se o rotulo eh maior que 50 caracteres: erro
-            if (label.size() > 50) {
-                cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-                cout << "lexicon error: label is longer than 50 characters:" << endl;
-                cout << "\t\"" << label << "\"" << endl;
-            }
-            // se o rotulo nao eh composto apenas por letras, numeros e underscore: erro
-            for (unsigned int i = 0; i < label.size(); i++) {
-                if ((label[i] != 95) && (!((label[i] >= 48) && (label[i] <= 57)) && !((label[i] >= 65) && (label[i] <= 90)))) {
-                    cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-                    cout << "lexicon error: label \"" << label << "\" is not just letters, numbers or underscore" << endl;
-                    break;
-                }
-            }
-            // entra na analise sintatica: verifica se ha mais de um rotulo na mesma linha
-            if (check_duplicate (tokenizer, token)) {
-                cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-                cout << "syntactic error: more than one label on the same line" << endl;
+                cout << "lexicon error: label \"" << label << "\" is not just letters, numbers or underscore" << endl;
+                break;
             }
         }
+        // verifica se ha mais de um rotulo na mesma linha
+        if (check_duplicate (tokenizer, token)) {
+            cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+            cout << "syntactic error: more than one label on the same line" << endl;
+        }
+    }
 };
 
 // passagem unica
 void onepass (string* file_name) {
     istringstream tokenizer {line};
     string token;
-    line_number++;
+    // line_number++;
 
     while (tokenizer >> token) {
         // cout << token << endl;
@@ -176,12 +180,11 @@ void onepass (string* file_name) {
                             break;
             default:
                 // se token for rotulo
-                // decidir depois quem vai analisar rotulos, preprocessamento ou passagem 1
                 if ( token.back() == ':' ) {
                     // cout << address << ' ' << token << endl;
                     token.pop_back();
                     static Analyze label;
-                    label.set(token);
+                    label = token;
                     label.check (file_name, &tokenizer, &token);
                     address++; // precisa ajustar para space
                 }
@@ -192,7 +195,7 @@ void onepass (string* file_name) {
 
 // pre-processamento
 void preprocessing (string* file_name) {
-    Analyze label;
+    Analyze ident;
     istringstream tokenizer {line};
     string token;
     line_number++;
@@ -203,19 +206,25 @@ void preprocessing (string* file_name) {
         // se houver rotulos repetidos, pular para o ultimo
         if (token.back() == ':') {
             token.pop_back();
-            label.set (token);
-            label.check_duplicate (&tokenizer, &token);
+            ident = token;
+            ident.check_duplicate (&tokenizer, &token);
         }
         
         // analisa o token (o token seguinte ao rotulo, se existir rotulo)
         switch ( DIRECTIVE[ token ] ) {
+
             case d_EQU: // nota: lembrar que o rotulo pode vir em uma linha diferente
-                if (!label.empty()) {
-                    label.check (file_name, &tokenizer, &token);
-                    static Table equal (token, label.content());
-                    // cout << label.content() << endl;
-                    label.clear();
-                } else {
+                // se identificador nao estiver vazio, substituir por valor constante
+                if (!ident.empty()) {
+                    ident.check (file_name, &tokenizer, &token);
+                    static Link aux (ident.content, token);
+                    static queue<Link> t_equal;
+                    t_equal.push (aux);
+                    // cout << ident.content << ": " << token << endl;
+                    // cout << t_equal.front().symbol << ": " << t_equal.front().value << endl;
+                    ident.clear();
+                }
+                else {
                     cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
                     cout << "syntactic error: label for the EQU directive does not exist" << endl;
                 }
@@ -243,7 +252,7 @@ int main () {
             getline (file, line);                   // le linha do codigo fonte
             for (auto & c: line) c = toupper(c);    // retira sensibilidade ao caso
             preprocessing (&file_name);             // realiza o pre-processamento
-            // onepass (&file_name); // vai precisar entrar em outro laco fora deste, usando como arquivo fonte o codigo pre processado
+            onepass (&file_name); // vai precisar entrar em outro laco fora deste, usando como arquivo fonte o codigo pre processado
             // cout << line << endl;
         }
         file.close();
