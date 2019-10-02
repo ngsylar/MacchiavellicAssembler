@@ -1,5 +1,7 @@
 TRIANGULO: 1BOLA: EQU 1
-BOLA: EQU 1
+BOLA:
+EQU 1
+QUADRADO:
 SECTION TEXT
 INPUT OLD_DATA
 LOAD OLD_DATA
@@ -25,8 +27,10 @@ g4y: space
 umtestebacanabembananaparatestarseissofuncionacarau: SPACE
 cag@$o: space
 mey_av: space
+m4ria: BOLA
 _mey_av: space
 __meyav: blobsky: space
 meyav_: space
 cag%$o: const 3
 g00ai: const 2
+substitoar: BOLA

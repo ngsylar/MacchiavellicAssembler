@@ -7,12 +7,10 @@ using namespace std;
 
 // criar class position: relacionar numero da linha do arquivo preprocessado com o arquivo fonte
 
-string line;            // guarda uma linha do codigo fonte
-int line_number = 0;    // conta a posicao da linha no codigo fonte
-int address = 0;        // conta a posicao de memoria do token
-
-// class Counter {
-// };
+static string line;             // guarda uma linha do codigo fonte ou pre-processado
+static string symbol;           // auxiliar para guardar um token
+static int line_number = 0;     // conta a posicao da linha no codigo fonte
+static int address = 0;         // conta a posicao de memoria do token
 
 enum e_OPCODE {ADD=1, SUB, MULT, DIV, JMP, JMPN, JMPP, JMPZ, COPY, LOAD, STORE, INPUT, OUTPUT, STOP};
 enum e_DIRECTIVE {d_SECTION=1, d_SPACE, d_CONST, d_EQU, d_IF};
@@ -48,17 +46,23 @@ void stringSwitch () {
     SECTION["DATA"] = s_DATA;
 }
 
+// class Counter {
+// };
+
 // classe para relacionar tokens
 class Link {
     public:
     string symbol;      // identificador ou rotulo
     string value;       // sinonimo ou simbolo
 
-    Link (string symbol, string value) {
+    // cria uma nova relacao
+    void insert (string symbol, string value) {
         this->symbol = symbol;
         this->value = value;
     }
 };
+static Link relation;
+static queue<Link> table;
 
 class Analyze {
     public:
@@ -195,9 +199,10 @@ void onepass (string* file_name) {
 
 // pre-processamento
 void preprocessing (string* file_name) {
-    Analyze ident;
-    istringstream tokenizer {line};
-    string token;
+    Analyze ident;                  // identificador a ser analisado
+    queue<Link> it;                 // iterador de Link
+    istringstream tokenizer {line}; // decompositor de linha
+    string token;                   // token
     line_number++;
 
     while (tokenizer >> token) {
@@ -208,8 +213,15 @@ void preprocessing (string* file_name) {
             token.pop_back();
             ident = token;
             ident.check_duplicate (&tokenizer, &token);
+            // se houver quebra de linha apos rotulo, sai do laco (nao limpa a string token)
+            if ( tokenizer.eof() || (token.front() == ';')) {
+                symbol = ident.content;
+            }
+        } else if (!symbol.empty()) {
+            ident = symbol;
+            symbol.clear();
         }
-        
+
         // analisa o token (o token seguinte ao rotulo, se existir rotulo)
         switch ( DIRECTIVE[ token ] ) {
 
@@ -217,11 +229,12 @@ void preprocessing (string* file_name) {
                 // se identificador nao estiver vazio, substituir por valor constante
                 if (!ident.empty()) {
                     ident.check (file_name, &tokenizer, &token);
-                    static Link aux (ident.content, token);
-                    static queue<Link> t_equal;
-                    t_equal.push (aux);
+                    relation.insert (ident.content, token);
+                    table.push (relation);
                     // cout << ident.content << ": " << token << endl;
-                    // cout << t_equal.front().symbol << ": " << t_equal.front().value << endl;
+                    // cout << relation.symbol << ": " << relation.value << endl;
+                    // cout << table.front().symbol << ": " << table.front().value << endl;
+                    // cout << table.size() << endl;
                     ident.clear();
                 }
                 else {
@@ -231,10 +244,21 @@ void preprocessing (string* file_name) {
                 break;
             case d_IF:      // cout << token << endl;
                             break;
-            default:
+            default:        // nota: mexer com Link aqui
                 if (token.front() == ';') {
                     // aqui o endereco nao pode contar
                     while (tokenizer >> token);
+                } else {
+                    it = table;
+                    while (!it.empty()) {
+                        // cout << it.front().symbol << ": " << it.front().value << endl;
+                        relation = it.front();
+                        if (token == relation.symbol) {
+                            // substitoiar
+                            cout << "unique" << endl;
+                        }
+                        it.pop();
+                    }
                 }
                 break;
         }
@@ -252,7 +276,7 @@ int main () {
             getline (file, line);                   // le linha do codigo fonte
             for (auto & c: line) c = toupper(c);    // retira sensibilidade ao caso
             preprocessing (&file_name);             // realiza o pre-processamento
-            onepass (&file_name); // vai precisar entrar em outro laco fora deste, usando como arquivo fonte o codigo pre processado
+            // onepass (&file_name); // vai precisar entrar em outro laco fora deste, usando como arquivo fonte o codigo pre processado
             // cout << line << endl;
         }
         file.close();
