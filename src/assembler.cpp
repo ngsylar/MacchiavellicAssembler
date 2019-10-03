@@ -2,15 +2,19 @@
 #include <fstream>
 #include <sstream>
 #include <queue>
+#include <list>
 #include <map>
 using namespace std;
 
-// criar class position: relacionar numero da linha do arquivo preprocessado com o arquivo fonte
-
-static string line;             // guarda uma linha do codigo fonte ou pre-processado
+static string line;             // guarda uma linha do codigo fonte ou pre-processado 
 static string symbol;           // auxiliar para guardar um token
 static int line_number = 0;     // conta a posicao da linha no codigo fonte
 static int address = 0;         // conta a posicao de memoria do token
+static list<string> outline;    // linha do codigo de saida
+
+// criar class counter: relacionar numero da linha do arquivo preprocessado com o arquivo fonte
+// class Counter {
+// };
 
 enum e_OPCODE {ADD=1, SUB, MULT, DIV, JMP, JMPN, JMPP, JMPZ, COPY, LOAD, STORE, INPUT, OUTPUT, STOP};
 enum e_DIRECTIVE {d_SECTION=1, d_SPACE, d_CONST, d_EQU, d_IF};
@@ -46,9 +50,6 @@ void stringSwitch () {
     SECTION["DATA"] = s_DATA;
 }
 
-// class Counter {
-// };
-
 // classe para relacionar tokens
 class Link {
     public:
@@ -69,9 +70,7 @@ class Analyze {
     string content;
     
     // conteudo recebe token
-    void operator= (string token) {
-        content = token;
-    }
+    void operator= (string token) { content = token; }
 
     // verifica ou exclui conteudo do objeto
     int empty ()    { return content.empty(); }
@@ -81,16 +80,21 @@ class Analyze {
     int check_duplicate (istringstream* tokenizer, string* token) {
         string* label = &content;
 
-        *tokenizer >> *token;                   // pega o proximo token
-        if (token->back() == ':') {             // se token for rotulo entao
-            do {
-                token->pop_back();              // descarta ':'
-                *label = *token;                // rotulo recebe token
-                *tokenizer >> *token;           // pega proximo token
-            } while (token->back() == ':');     // repetir laco enquanto token for rotulo
-            return 1;                           // retorna 1 se houver mais de um rotulo
-        } else
-            return 0;                           // se nao, retorna 0
+        if ( !tokenizer->eof() ) {                  // se linha nao acabou
+            *tokenizer >> *token;                   // pega o proximo token
+            outline.push_back(*token);              // insere token na lina de saida
+            if (token->back() == ':') {             // se token for rotulo entao
+                do {
+                    token->pop_back();              // descarta ':'
+                    *label = *token;                // rotulo recebe token
+                    if ( !tokenizer->eof() ) {      // se linha nao acabou
+                        *tokenizer >> *token;       // pega proximo token
+                        outline.push_back(*token);  // insere token na lina de saida
+                    } else break;
+                } while (token->back() == ':');     // repetir laco enquanto token for rotulo
+                return 1;                           // retorna 1 se houver mais de um rotulo
+            } else return 0;                        // se nao, retorna 0
+        } else return 0;                            // se linha acabou, retorna 0
     }
 
     // analise: verifica validade dos rotulos inseridos no codigo fonte
@@ -125,6 +129,40 @@ class Analyze {
         if (check_duplicate (tokenizer, token)) {
             cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
             cout << "syntactic error: more than one label on the same line" << endl;
+        }
+    }
+
+    // analise: verifica a validade de uma constante
+    void check_if_const (string* file_name, string token) {
+        string aux;
+
+        // se numero for negativo, guardar sinal
+        if (token.front() == '-') {
+            token.erase (0,1);
+            aux.append("-");
+        }
+
+        // se numero estiver na base hexadecimal
+        if ((token.size() > 2) && (token[0] == '0') && (token[1] == 'X')) {
+            token.erase (0,2);
+            aux.append("0x"+token);
+            for (unsigned int i=0; i < token.size(); i++) {
+                // se numero nao contem apenas digitos numericos e caracteres de A a F, erro
+                if (!((token[i] >= 48) && (token[i] <= 57)) && !((token[i] >= 41) && (token[i] <= 46))) {
+                    cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+                    cout << "syntactic error: constant \"" << aux << "\" consisting of invalid characters" << endl;
+                }
+            }
+        } else {
+            // se numero nao for hexadecimal, analisar como decimal
+            aux.append(token);
+            for (unsigned int i=0; i < token.size(); i++) {
+                // se numeo nao contem apenas digitos numericos, erro
+                if (!((token[i] >= 48) && (token[i] <= 57))) {
+                    cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+                    cout << "syntactic error: constant \"" << aux << "\" consisting of invalid characters" << endl;
+                }
+            }
         }
     }
 };
@@ -197,16 +235,55 @@ void onepass (string* file_name) {
     }
 }
 
+// funcao auxiliar de pre-processamento: escreve codigo pre-processado
+void write_preprocessed_file (ofstream* pre_file) {
+    queue<Link> it;
+
+    while (!outline.empty()) {
+        if (outline.front() == ".newline.") {
+            // pre_file << outline.front() << endl;
+            *pre_file << endl;
+        } else {
+            it = table;
+            try {
+                while ( !it.empty() ) {
+                    relation = it.front();
+                    it.pop();
+                    if (outline.front() == relation.symbol) {
+                        throw 1;
+                        break;
+                    } else if ( it.empty() ) {
+                        throw 0;
+                    }
+                }
+            } catch (int linked) {
+                if (linked) {
+                    *pre_file << relation.value << " ";
+                } else if (!linked) {
+                    *pre_file << outline.front() << " ";
+                }
+            }
+        }
+        outline.pop_front();
+    }
+}
+
+// funcao auxiliar de pre-processamento: remove diretiva EQU da linha de saida
+void clear_EQU_line () {
+    for (int i=0; i<2; i++) outline.pop_back();
+    if (outline.back() == ".newline.") outline.pop_back();
+    outline.pop_back();
+}
+
 // pre-processamento
 void preprocessing (string* file_name) {
     Analyze ident;                  // identificador a ser analisado
-    queue<Link> it;                 // iterador de Link
     istringstream tokenizer {line}; // decompositor de linha
-    string token;                   // token
+    string token;                   // string lida na linha de entrada
     line_number++;
 
     while (tokenizer >> token) {
-        // cout << token << endl;
+        outline.push_back(token);   // insere token na lina de saida
 
         // se houver rotulos repetidos, pular para o ultimo
         if (token.back() == ':') {
@@ -214,29 +291,29 @@ void preprocessing (string* file_name) {
             ident = token;
             ident.check_duplicate (&tokenizer, &token);
             // se houver quebra de linha apos rotulo, sai do laco (nao limpa a string token)
-            if ( tokenizer.eof() || (token.front() == ';')) {
+            if ( tokenizer.eof() || (token.front() == ';'))
                 symbol = ident.content;
-            }
-        } else if (!symbol.empty()) {
+        } // se nao houver rotulo na linha atual, verifica a existencia de rotulo na linha anterior
+        else if (!symbol.empty()) {
             ident = symbol;
             symbol.clear();
         }
 
         // analisa o token (o token seguinte ao rotulo, se existir rotulo)
         switch ( DIRECTIVE[ token ] ) {
-
             case d_EQU: // nota: lembrar que o rotulo pode vir em uma linha diferente
-                // se identificador nao estiver vazio, substituir por valor constante
+                // se identificador nao estiver vazio, inserir numa tabela relacionando-o com seu sinonimo
                 if (!ident.empty()) {
-                    ident.check (file_name, &tokenizer, &token);
-                    relation.insert (ident.content, token);
-                    table.push (relation);
-                    // cout << ident.content << ": " << token << endl;
-                    // cout << relation.symbol << ": " << relation.value << endl;
-                    // cout << table.front().symbol << ": " << table.front().value << endl;
-                    // cout << table.size() << endl;
-                    ident.clear();
+                    ident.check (file_name, &tokenizer, &token);    // analisa validade do rotulo
+                    ident.check_if_const(file_name, token);         // analisa validade da constante
+                    clear_EQU_line();                               // remove diretiva EQU da linha de saida
+                    // cout << outline.back() << token << endl;
+                    relation.insert (ident.content, token);         // relaciona simbolo e valor
+                    // cout << relation.symbol << " " << relation.value << endl;
+                    table.push (relation);                          // insere relacao numa tabela
+                    ident.clear();                                  // limpa rotulo para proximas linhas
                 }
+                // se estiver vazio, erro na diretiva EQU
                 else {
                     cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
                     cout << "syntactic error: label for the EQU directive does not exist" << endl;
@@ -245,32 +322,30 @@ void preprocessing (string* file_name) {
             case d_IF:      // cout << token << endl;
                             break;
             default:        // nota: mexer com Link aqui
+                // se token for comentario, pular para proxima linha
                 if (token.front() == ';') {
-                    // aqui o endereco nao pode contar
+                    // nota: aqui o endereco nao pode contar
                     while (tokenizer >> token);
-                } else {
-                    it = table;
-                    while (!it.empty()) {
-                        // cout << it.front().symbol << ": " << it.front().value << endl;
-                        relation = it.front();
-                        if (token == relation.symbol) {
-                            // substitoiar
-                            cout << "unique" << endl;
-                        }
-                        it.pop();
-                    }
                 }
                 break;
         }
     }
+    outline.push_back(".newline.");
 }
 
 int main () {
-    stringSwitch();
+    stringSwitch();     // inicializa palavras reservadas
 
+    // abre arquivo contendo o codigo fonte
     string file_name = "testing.asm"; // essa string depois vai ser o argumento iniciado junto ao programa na linha de comando
-
     ifstream file (file_name);
+
+    // cria um arquivo contendo o codigo pre-processado
+    string out_name = file_name;
+    for (int i=0; i<3; i++) out_name.pop_back();
+    out_name.append("pre");
+    ofstream pre_file (out_name);
+
     if ( file.is_open() ) {
         while ( !file.eof() ) {
             getline (file, line);                   // le linha do codigo fonte
@@ -282,6 +357,9 @@ int main () {
         file.close();
     }
     else cout << endl << "ERROR: File not found!";
+
+    write_preprocessed_file (&pre_file);
+    pre_file.close();
 
     // cout << line_number << endl;
     return 0;
