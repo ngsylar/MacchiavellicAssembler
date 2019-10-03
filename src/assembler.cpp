@@ -1,3 +1,7 @@
+// ----------------------------------------------------------------------------------------------------
+//    BIBLIOTECAS
+// ----------------------------------------------------------------------------------------------------
+
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -6,15 +10,19 @@
 #include <map>
 using namespace std;
 
+// ----------------------------------------------------------------------------------------------------
+//    VARIAVEIS AUXILIARES
+// ----------------------------------------------------------------------------------------------------
+
 static string line;             // guarda uma linha do codigo fonte ou pre-processado 
 static string symbol;           // auxiliar para guardar um token
 static int line_number = 0;     // conta a posicao da linha no codigo fonte
 static int address = 0;         // conta a posicao de memoria do token
 static list<string> outline;    // linha do codigo de saida
 
-// criar class counter: relacionar numero da linha do arquivo preprocessado com o arquivo fonte
-// class Counter {
-// };
+// ----------------------------------------------------------------------------------------------------
+//    DEFINICAO DE OPERACOES E DIRETIVAS RECONHECIDAS PELO MONTADOR
+// ----------------------------------------------------------------------------------------------------
 
 enum e_OPCODE {ADD=1, SUB, MULT, DIV, JMP, JMPN, JMPP, JMPZ, COPY, LOAD, STORE, INPUT, OUTPUT, STOP};
 enum e_DIRECTIVE {d_SECTION=1, d_SPACE, d_CONST, d_EQU, d_IF};
@@ -50,6 +58,14 @@ void stringSwitch () {
     SECTION["DATA"] = s_DATA;
 }
 
+// ----------------------------------------------------------------------------------------------------
+//    CLASSES AUXILIARES
+// ----------------------------------------------------------------------------------------------------
+
+// criar class counter: relacionar numero da linha do arquivo preprocessado com o arquivo fonte
+// class Counter {
+// };
+
 // classe para relacionar tokens
 class Link {
     public:
@@ -65,41 +81,50 @@ class Link {
 static Link relation;
 static queue<Link> table;
 
+// ----------------------------------------------------------------------------------------------------
+//    ANALISE DE CODIGO
+// ----------------------------------------------------------------------------------------------------
+
+// classe de metodos de analise de codigo
 class Analyze {
     public:
     string content;
     
-    // conteudo recebe token
-    void operator= (string token) { content = token; }
-
-    // verifica ou exclui conteudo do objeto
+    // inicializa, verifica ou exclui conteudo do objeto
+    void insert (string token) { content = token; }
     int empty ()    { return content.empty(); }
     void clear ()   { content.clear(); }
 
-    // analise: verifica se ha mais de um rotulo na mesma linha
+    // analise: verifica se ha mais de um rotulo na mesma linha (usa auxiliar content)
     int check_duplicate (istringstream* tokenizer, string* token) {
-        string* label = &content;
+        if ( content.empty() ) return 0;            // content precisa ser inicializado fora da funcao
+        string* label = &content;                   // se content nao estiver vazio, label recebe seu endereco
 
         if ( !tokenizer->eof() ) {                  // se linha nao acabou
             *tokenizer >> *token;                   // pega o proximo token
             outline.push_back(*token);              // insere token na lina de saida
             if (token->back() == ':') {             // se token for rotulo entao
-                do {
+                do {                                // laco
                     token->pop_back();              // descarta ':'
                     *label = *token;                // rotulo recebe token
                     if ( !tokenizer->eof() ) {      // se linha nao acabou
                         *tokenizer >> *token;       // pega proximo token
                         outline.push_back(*token);  // insere token na lina de saida
-                    } else break;
+                    } else break;                   // se linha terminou, sai do laco
                 } while (token->back() == ':');     // repetir laco enquanto token for rotulo
                 return 1;                           // retorna 1 se houver mais de um rotulo
-            } else return 0;                        // se nao, retorna 0
+            } else return 0;                        // se token nao for rotulo, retorna 0
         } else return 0;                            // se linha acabou, retorna 0
     }
 
-    // analise: verifica validade dos rotulos inseridos no codigo fonte
-    void check (string* file_name, istringstream* tokenizer, string* token) {
-        string label = content;
+    // analise: verifica validade dos rotulos inseridos no codigo fonte (usa ou cria auxiliar content)
+    void check_label (string* file_name, istringstream* tokenizer, string* token) {
+        bool init = false;
+        if ( content.empty() ) {    // se content nao foi inicializado
+            content = *token;       // content recebe conteudo do token
+            init = true;            // sinaliza se content foi inicializado dentro da funcao
+        }
+        string label = content;     // label recebe content
 
         // se label for igual a uma instrucao ou diretiva
         if (((OPCODE[label] >= 1) && (OPCODE[label] <= 14)) || ((DIRECTIVE[label] >= 1) && (DIRECTIVE[label] <= 5)) || ((SECTION[label] >= 1) && (SECTION[label] <= 2))) {
@@ -130,10 +155,13 @@ class Analyze {
             cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
             cout << "syntactic error: more than one label on the same line" << endl;
         }
+
+        // se content foi inicializado dentro da funcao, limpar content
+        if (init) content.clear();
     }
 
     // analise: verifica a validade de uma constante
-    void check_if_const (string* file_name, string token) {
+    void check_const (string* file_name, string token) {
         string aux;
 
         // se numero for negativo, guardar sinal
@@ -166,6 +194,10 @@ class Analyze {
         }
     }
 };
+
+// ----------------------------------------------------------------------------------------------------
+//    SINTESE DE CODIGO
+// ----------------------------------------------------------------------------------------------------
 
 // passagem unica
 void onepass (string* file_name) {
@@ -226,14 +258,17 @@ void onepass (string* file_name) {
                     // cout << address << ' ' << token << endl;
                     token.pop_back();
                     static Analyze label;
-                    label = token;
-                    label.check (file_name, &tokenizer, &token);
+                    label.check_label (file_name, &tokenizer, &token);
                     address++; // precisa ajustar para space
                 }
                 break;
         }
     }
 }
+
+// ----------------------------------------------------------------------------------------------------
+//    PRE-PROCESSAMENTO
+// ----------------------------------------------------------------------------------------------------
 
 // funcao auxiliar de pre-processamento: escreve codigo pre-processado
 void write_preprocessed_file (ofstream* pre_file) {
@@ -288,35 +323,37 @@ void preprocessing (string* file_name) {
         // se houver rotulos repetidos, pular para o ultimo
         if (token.back() == ':') {
             token.pop_back();
-            ident = token;
+            ident.insert(token);
             ident.check_duplicate (&tokenizer, &token);
             // se houver quebra de linha apos rotulo, sai do laco (nao limpa a string token)
             if ( tokenizer.eof() || (token.front() == ';'))
                 symbol = ident.content;
         } // se nao houver rotulo na linha atual, verifica a existencia de rotulo na linha anterior
         else if (!symbol.empty()) {
-            ident = symbol;
+            ident.insert(symbol);
             symbol.clear();
         }
 
         // analisa o token (o token seguinte ao rotulo, se existir rotulo)
         switch ( DIRECTIVE[ token ] ) {
-            case d_EQU: // nota: lembrar que o rotulo pode vir em uma linha diferente
+            case d_EQU:
                 // se identificador nao estiver vazio, inserir numa tabela relacionando-o com seu sinonimo
                 if (!ident.empty()) {
-                    ident.check (file_name, &tokenizer, &token);    // analisa validade do rotulo
-                    ident.check_if_const(file_name, token);         // analisa validade da constante
-                    clear_EQU_line();                               // remove diretiva EQU da linha de saida
+                    ident.check_label (file_name, &tokenizer, &token);  // analisa validade do rotulo
+                    ident.check_const (file_name, token);               // analisa validade da constante
+                    clear_EQU_line();                                   // remove diretiva EQU da linha de saida
                     // cout << outline.back() << token << endl;
-                    relation.insert (ident.content, token);         // relaciona simbolo e valor
+                    relation.insert (ident.content, token);             // relaciona simbolo e valor
                     // cout << relation.symbol << " " << relation.value << endl;
-                    table.push (relation);                          // insere relacao numa tabela
-                    ident.clear();                                  // limpa rotulo para proximas linhas
+                    table.push (relation);                              // insere relacao numa tabela
+                    ident.clear();                                      // limpa rotulo para proximas linhas
                 }
                 // se estiver vazio, erro na diretiva EQU
                 else {
                     cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
                     cout << "syntactic error: label for the EQU directive does not exist" << endl;
+                    outline.pop_back();             // remove diretiva EQU da linha de saida
+                    while (tokenizer >> token);     // ignora o resto da linha
                 }
                 break;
             case d_IF:      // cout << token << endl;
@@ -332,6 +369,10 @@ void preprocessing (string* file_name) {
     }
     outline.push_back(".newline.");
 }
+
+// ----------------------------------------------------------------------------------------------------
+//    MONTADOR
+// ----------------------------------------------------------------------------------------------------
 
 int main () {
     stringSwitch();     // inicializa palavras reservadas
