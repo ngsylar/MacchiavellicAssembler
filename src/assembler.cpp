@@ -162,7 +162,6 @@ class Analyze {
             } else return 0;                        // se token nao for rotulo, retorna 0
         } else return 0;                            // se linha acabou, retorna 0
     }
-
     // analise: verifica validade dos rotulos inseridos no codigo fonte (usa ou cria auxiliar content)
     void check_label (string* file_name, istringstream* tokenizer, string* token) {
         bool init = false;
@@ -205,7 +204,6 @@ class Analyze {
         // se content foi inicializado dentro da funcao, limpar content
         if (init) content.clear();
     }
-
     // analise: verifica a validade de uma constante
     void check_const (string* file_name, string token) {
         string aux;
@@ -239,9 +237,8 @@ class Analyze {
             }
         }
     }
-
-    // analise: verifica a validade da secao declarada
-    void check_section (string* file_name, istringstream* tokenizer, string* token) {    
+    // analise: faz contagem de secao
+    void inside_section (istringstream* tokenizer, string* token) {
         if ( !tokenizer->eof() ) {              // se linha nao acabou
             *tokenizer >> *token;               // pega proximo token
             outline.push_back(*token);          // insere token na lina de saida
@@ -264,6 +261,11 @@ class Analyze {
             cursor.placement = s_null;          // marcador recebe secao nenhuma
             cursor.error = true;                // sinaliza erro
         }
+    }
+    // analise: verifica a validade da secao declarada
+    void check_section (string* file_name, istringstream* tokenizer, string* token) {    
+        inside_section(tokenizer, token);
+
         // se houver erro em SECTION
         if (cursor.error) {
             // se cursores ja foram definidos, erro de tentativa de sobrecarregamento de secoes
@@ -395,7 +397,7 @@ void write_preprocessed_file (ofstream* pre_file) {
 // funcao auxiliar de pre-processamento: remove diretiva EQU da linha de saida
 void clear_EQU_line () {
     for (int i=0; i<2; i++) outline.pop_back();
-    if (outline.back() == newline) outline.pop_back();
+    while (outline.back() == newline) outline.pop_back();
     outline.pop_back();
 }
 
@@ -412,7 +414,7 @@ void preprocessing (string* file_name) {
         // se token for diretiva SECTION, verificar validade da secao declarada
         switch ( DIRECTIVE[token] ) {
             case d_SECTION:
-                ident.check_section (file_name, &tokenizer, &token);
+                ident.inside_section (&tokenizer, &token);
             default: break;
         }
 
