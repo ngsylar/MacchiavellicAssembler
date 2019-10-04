@@ -19,6 +19,7 @@ static string symbol;           // auxiliar para guardar um token
 static int line_number = 0;     // conta a posicao da linha no codigo fonte
 static int address = 0;         // conta a posicao de memoria do token
 static list<string> outline;    // linha do codigo de saida
+static const string newline = ".newline.";      // identificador de nova linha para codigo de saida
 
 // ----------------------------------------------------------------------------------------------------
 //    DEFINICAO DE OPERACOES E DIRETIVAS RECONHECIDAS PELO MONTADOR
@@ -26,7 +27,7 @@ static list<string> outline;    // linha do codigo de saida
 
 enum e_OPCODE {ADD=1, SUB, MULT, DIV, JMP, JMPN, JMPP, JMPZ, COPY, LOAD, STORE, INPUT, OUTPUT, STOP};
 enum e_DIRECTIVE {d_SECTION=1, d_SPACE, d_CONST, d_EQU, d_IF};
-enum e_SECTION {s_TEXT=1, s_DATA};
+enum e_SECTION {s_TEXT=1, s_DATA, s_null};
 static map<string, e_OPCODE> OPCODE;
 static map<string, e_DIRECTIVE> DIRECTIVE;
 static map<string, e_SECTION> SECTION;
@@ -66,7 +67,52 @@ void stringSwitch () {
 // class Counter {
 // };
 
-// classe para relacionar tokens
+// classe para marcar secao atual no processo de analise
+class Bookmark {
+    public:
+    int placement = s_null;
+    int text_count = 0;
+    int data_count = 0;
+    bool error = false;
+
+    // retorna 1 caso cursor ja tenha passado por alguma secao valida
+    int got_in () {
+        if ((text_count > 0) || (data_count > 0))
+            return 1;
+        else
+            return 0;
+    }
+    // retorna 1 se as duas secoes, TEXT e DATA ja foram definidas
+    int full () {
+        if ((text_count > 0) && (data_count > 0))
+            return 1;
+        else
+            return 0;
+    }
+    // retorna 1 se cursor encontrar nova secao de um tipo ja declarado anteriormente
+    int overflowed (string s_type) {
+        switch (SECTION[ s_type ]) {
+        case s_TEXT:
+            if (text_count > 1)
+                return 1;
+        case s_DATA:
+            if (data_count > 1)
+                return 1;
+        default:
+            return 0;
+        }
+    }
+    // limpa cursor
+    void clear () {
+        placement = s_null;
+        text_count = 0;
+        data_count = 0;
+        error = false;
+    }
+};
+static Bookmark cursor;
+
+// classe para relacionar tokens a seus sinonimos
 class Link {
     public:
     string symbol;      // identificador ou rotulo
@@ -96,7 +142,7 @@ class Analyze {
     void clear ()   { content.clear(); }
 
     // analise: verifica se ha mais de um rotulo na mesma linha (usa auxiliar content)
-    int check_duplicate (istringstream* tokenizer, string* token) {
+    int multiple_labels (istringstream* tokenizer, string* token) {
         if ( content.empty() ) return 0;            // content precisa ser inicializado fora da funcao
         string* label = &content;                   // se content nao estiver vazio, label recebe seu endereco
 
@@ -126,7 +172,7 @@ class Analyze {
         }
         string label = content;     // label recebe content
 
-        // se label for igual a uma instrucao ou diretiva
+        // se label for igual a uma palavra reservada
         if (((OPCODE[label] >= 1) && (OPCODE[label] <= 14)) || ((DIRECTIVE[label] >= 1) && (DIRECTIVE[label] <= 5)) || ((SECTION[label] >= 1) && (SECTION[label] <= 2))) {
             cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
             cout << "semantic error: invalid label (\"" << label << "\" is a reserved word)" << endl;
@@ -151,7 +197,7 @@ class Analyze {
             }
         }
         // verifica se ha mais de um rotulo na mesma linha
-        if (check_duplicate (tokenizer, token)) {
+        if (multiple_labels (tokenizer, token)) {
             cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
             cout << "syntactic error: more than one label on the same line" << endl;
         }
@@ -193,6 +239,49 @@ class Analyze {
             }
         }
     }
+
+    // analise: verifica a validade da secao declarada
+    void check_section (string* file_name, istringstream* tokenizer, string* token) {    
+        if ( !tokenizer->eof() ) {              // se linha nao acabou
+            *tokenizer >> *token;               // pega proximo token
+            outline.push_back(*token);          // insere token na lina de saida
+
+            switch ( SECTION[*token] ) {
+                case s_TEXT:                    // se sucessor for TEXT
+                    cursor.placement = s_TEXT;  // marcador recebe secao TEXT
+                    cursor.text_count++;        // incrementa numero de secoes TEXT encontradas
+                    break;
+                case s_DATA:                    // se sucessor for DATA
+                    cursor.placement = s_DATA;  // marcador recebe secao DATA
+                    cursor.data_count++;
+                    break;
+                default:                        // se sucessor for invalido
+                    cursor.placement = s_null;  // marcador recebe secao nenhuma
+                    cursor.error = true;        // sinaliza erro
+                    break;
+            }
+        } else {                                // se linha acabou
+            cursor.placement = s_null;          // marcador recebe secao nenhuma
+            cursor.error = true;                // sinaliza erro
+        }
+        // se houver erro em SECTION
+        if (cursor.error) {
+            // se cursores ja foram definidos, erro de tentativa de sobrecarregamento de secoes
+            if ( cursor.full() ) {
+                cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+                cout << "syntactic error: more than two sections" << endl;
+                cursor.error = false;   // limpa erro para proxima avaliacao
+            } // se ha cursor disponivel, tipo de secao esta ausente
+            else {
+                cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+                cout << "syntactic error: missing section type" << endl;
+                cursor.error = false;   // limpa erro para proxima avaliacao
+            } // se nao houver erro, verificar se ha sobrecarregamento
+        } else if ( cursor.overflowed(*token) ) {
+            cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+            cout << "syntactic error: " << *token << " section already exists" << endl;
+        }
+    }
 };
 
 // ----------------------------------------------------------------------------------------------------
@@ -208,20 +297,20 @@ void onepass (string* file_name) {
     while (tokenizer >> token) {
         // cout << token << endl;
 
-        switch ( DIRECTIVE[token] ) {
-            case d_SECTION:
-                tokenizer >> token;
-                switch ( SECTION[token] ) {
-                    case s_TEXT: break; // aqui devera vir o switch para opcodes
-                    case s_DATA: break;
-                } break;
-            case d_SPACE:   // cout << token << endl;
-                            break;
-            case d_CONST:   // cout << token << endl;
-                            break;
-            default:
-                break;
-        }
+        // switch ( DIRECTIVE[token] ) {
+        //     case d_SECTION:
+        //         tokenizer >> token;
+        //         switch ( SECTION[token] ) {
+        //             case s_TEXT: break; // aqui devera vir o switch para opcodes
+        //             case s_DATA: break;
+        //         } break;
+        //     case d_SPACE:   // cout << token << endl;
+        //                     break;
+        //     case d_CONST:   // cout << token << endl;
+        //                     break;
+        //     default:
+        //         break;
+        // }
 
         switch ( OPCODE[token] ) {
             case ADD:       // cout << token << endl;
@@ -275,7 +364,7 @@ void write_preprocessed_file (ofstream* pre_file) {
     queue<Link> it;
 
     while (!outline.empty()) {
-        if (outline.front() == ".newline.") {
+        if (outline.front() == newline) {
             // pre_file << outline.front() << endl;
             *pre_file << endl;
         } else {
@@ -306,7 +395,7 @@ void write_preprocessed_file (ofstream* pre_file) {
 // funcao auxiliar de pre-processamento: remove diretiva EQU da linha de saida
 void clear_EQU_line () {
     for (int i=0; i<2; i++) outline.pop_back();
-    if (outline.back() == ".newline.") outline.pop_back();
+    if (outline.back() == newline) outline.pop_back();
     outline.pop_back();
 }
 
@@ -317,19 +406,29 @@ void preprocessing (string* file_name) {
     string token;                   // string lida na linha de entrada
     line_number++;
 
-    while (tokenizer >> token) {
+    while (tokenizer >> token) {    // enquanto linha nao acabou, pega um token
         outline.push_back(token);   // insere token na lina de saida
 
-        // se houver rotulos repetidos, pular para o ultimo
+        // se token for diretiva SECTION, verificar validade da secao declarada
+        switch ( DIRECTIVE[token] ) {
+            case d_SECTION:
+                ident.check_section (file_name, &tokenizer, &token);
+            default: break;
+        }
+
+        // se houver mais de um rotulo, pular para o ultimo
         if (token.back() == ':') {
             token.pop_back();
-            ident.insert(token);
-            ident.check_duplicate (&tokenizer, &token);
-            // se houver quebra de linha apos rotulo, sai do laco (nao limpa a string token)
-            if ( tokenizer.eof() || (token.front() == ';'))
-                symbol = ident.content;
-        } // se nao houver rotulo na linha atual, verifica a existencia de rotulo na linha anterior
-        else if (!symbol.empty()) {
+            ident.insert(token);                            // forca inicializacao de ident
+            ident.multiple_labels (&tokenizer, &token);     // checa quantidade de rotulos
+            // se houver quebra de linha apos rotulo
+            if ( tokenizer.eof() || (token.front() == ';')) {
+                symbol = ident.content;     // guarda rotulo em symbol
+                break;                      // sai do laco
+            }
+        }
+        // se nao houver rotulo na linha atual, verifica a existencia de rotulo na linha anterior
+        else if ( !symbol.empty() ) {
             ident.insert(symbol);
             symbol.clear();
         }
@@ -337,24 +436,42 @@ void preprocessing (string* file_name) {
         // analisa o token (o token seguinte ao rotulo, se existir rotulo)
         switch ( DIRECTIVE[ token ] ) {
             case d_EQU:
+                // se diretiva EQU apos secoes declaradas, erro
+                if ( cursor.got_in() ) {
+                    cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+                    cout << "semantic error: EQU directive after section declaration" << endl;
+                    outline.pop_back();             // remove diretiva EQU da linha de saida
+                    cursor.error = true;            // sinaliza erro, para impressao de apenas uma mensagem de erro
+                    while (tokenizer >> token);     // ignora o resto da linha
+                }
                 // se identificador nao estiver vazio, inserir numa tabela relacionando-o com seu sinonimo
-                if (!ident.empty()) {
+                if ( !ident.empty() ) {
                     ident.check_label (file_name, &tokenizer, &token);  // analisa validade do rotulo
                     ident.check_const (file_name, token);               // analisa validade da constante
                     clear_EQU_line();                                   // remove diretiva EQU da linha de saida
-                    // cout << outline.back() << token << endl;
                     relation.insert (ident.content, token);             // relaciona simbolo e valor
-                    // cout << relation.symbol << " " << relation.value << endl;
                     table.push (relation);                              // insere relacao numa tabela
-                    ident.clear();                                      // limpa rotulo para proximas linhas
+                    ident.clear();                                      // limpa rotulo para proxima linha
                 }
-                // se estiver vazio, erro na diretiva EQU
-                else {
+                // se identificador estiver vazio, erro na diretiva EQU
+                else if ( !cursor.error ) {
                     cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
                     cout << "syntactic error: label for the EQU directive does not exist" << endl;
                     outline.pop_back();             // remove diretiva EQU da linha de saida
+                    cursor.error = true;            // sinaliza erro, para impressao de apenas uma mensagem de erro
                     while (tokenizer >> token);     // ignora o resto da linha
                 }
+
+                // se nao houver quebra de linha apos declaracao EQU
+                symbol = token;                 // symbol recebe token
+                while (tokenizer >> token);     // varre resto da linha
+                // se tokenizer capturar outro token diferente do guardado em symbol, erro
+                if (!cursor.error && (token != symbol)) {
+                    cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+                    cout << "syntactic error: EQU directive has too many arguments" << endl;
+                } else cursor.error = false;    // limpa erro para proxima avaliacao
+                symbol.clear();                 // limpa symbol para proxima linha
+
                 break;
             case d_IF:      // cout << token << endl;
                             break;
@@ -362,12 +479,13 @@ void preprocessing (string* file_name) {
                 // se token for comentario, pular para proxima linha
                 if (token.front() == ';') {
                     // nota: aqui o endereco nao pode contar
-                    while (tokenizer >> token);
+                    outline.pop_back();             // remove comentario da linha de saida
+                    while (tokenizer >> token);     // pula para proxima linha do codigo fonte
                 }
                 break;
         }
     }
-    outline.push_back(".newline.");
+    outline.push_back (newline);    // insere quebra de linha na linha de saida
 }
 
 // ----------------------------------------------------------------------------------------------------
@@ -394,7 +512,7 @@ int main () {
             preprocessing (&file_name);             // realiza o pre-processamento
             // onepass (&file_name); // vai precisar entrar em outro laco fora deste, usando como arquivo fonte o codigo pre processado
             // cout << line << endl;
-        }
+        } // nota: limpar o Bookmark
         file.close();
     }
     else cout << endl << "ERROR: File not found!";
