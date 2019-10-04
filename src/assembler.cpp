@@ -237,7 +237,7 @@ class Analyze {
             }
         }
     }
-    // analise: faz contagem de secao
+    // analise: localiza secao atual e incrementa sua contagem
     void inside_section (istringstream* tokenizer, string* token) {
         if ( !tokenizer->eof() ) {              // se linha nao acabou
             *tokenizer >> *token;               // pega proximo token
@@ -395,10 +395,20 @@ void write_preprocessed_file (ofstream* pre_file) {
 }
 
 // funcao auxiliar de pre-processamento: remove diretiva EQU da linha de saida
-void clear_EQU_line () {
-    for (int i=0; i<2; i++) outline.pop_back();
-    while (outline.back() == newline) outline.pop_back();
-    outline.pop_back();
+void clear_EQU_line (istringstream* tokenizer, string* token, bool ident_empty) {
+    if (!ident_empty) {
+        // for (int i=0; i<2; i++) outline.pop_back();             // remove EQU e constante da linha de saida
+            // cout << outline.back() << endl;
+            outline.pop_back();
+            // cout << outline.back() << endl;
+            outline.pop_back();
+        while (outline.back() == newline) outline.pop_back();   // remove quebras de linha acima, se existirem
+            // cout << outline.back() << endl;
+        outline.pop_back();                                     // remove identificador
+    } else {
+        outline.pop_back();                 // remove EQU da linha de saida
+        while (*tokenizer >> *token);       // ignora o resto da linha
+    }
 }
 
 // pre-processamento
@@ -411,57 +421,58 @@ void preprocessing (string* file_name) {
     while (tokenizer >> token) {    // enquanto linha nao acabou, pega um token
         outline.push_back(token);   // insere token na lina de saida
 
-        // se token for diretiva SECTION, verificar validade da secao declarada
+        // se token for diretiva SECTION, verificar localizacao e contagem
         switch ( DIRECTIVE[token] ) {
             case d_SECTION:
                 ident.inside_section (&tokenizer, &token);
             default: break;
         }
 
-        // se houver mais de um rotulo, pular para o ultimo
+        // se houver mais de um identificador, pular para o ultimo
         if (token.back() == ':') {
             token.pop_back();
             ident.insert(token);                            // forca inicializacao de ident
-            ident.multiple_labels (&tokenizer, &token);     // checa quantidade de rotulos
-            // se houver quebra de linha apos rotulo
+            ident.multiple_labels (&tokenizer, &token);     // checa quantidade de identificadores
+            // se houver quebra de linha apos identificador
             if ( tokenizer.eof() || (token.front() == ';')) {
-                symbol = ident.content;     // guarda rotulo em symbol
+                symbol = ident.content;     // guarda identificador em symbol
                 break;                      // sai do laco
             }
         }
-        // se nao houver rotulo na linha atual, verifica a existencia de rotulo na linha anterior
+        // se nao houver identificador na linha atual, verifica a existencia de identificador na linha anterior
         else if ( !symbol.empty() ) {
             ident.insert(symbol);
             symbol.clear();
         }
 
-        // analisa o token (o token seguinte ao rotulo, se existir rotulo)
+        // analisa o token (o token seguinte ao identificador, se existir identificador)
         switch ( DIRECTIVE[ token ] ) {
             case d_EQU:
                 // se diretiva EQU apos secoes declaradas, erro
                 if ( cursor.got_in() ) {
                     cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
                     cout << "semantic error: EQU directive after section declaration" << endl;
-                    outline.pop_back();             // remove diretiva EQU da linha de saida
-                    cursor.error = true;            // sinaliza erro, para impressao de apenas uma mensagem de erro
-                    while (tokenizer >> token);     // ignora o resto da linha
+                    cursor.error = true;    // sinaliza erro, para impressao de apenas uma mensagem de erro
                 }
                 // se identificador nao estiver vazio, inserir numa tabela relacionando-o com seu sinonimo
                 if ( !ident.empty() ) {
-                    ident.check_label (file_name, &tokenizer, &token);  // analisa validade do rotulo
+                    ident.check_label (file_name, &tokenizer, &token);  // analisa validade do identificador
                     ident.check_const (file_name, token);               // analisa validade da constante
-                    clear_EQU_line();                                   // remove diretiva EQU da linha de saida
+                    clear_EQU_line (&tokenizer, &token, ident.empty()); // remove diretiva EQU da linha de saida
+                    // nota: antes de inserir, procurar identificador de mesmo nome na tabela de relacoes
                     relation.insert (ident.content, token);             // relaciona simbolo e valor
                     table.push (relation);                              // insere relacao numa tabela
-                    ident.clear();                                      // limpa rotulo para proxima linha
+                    ident.clear();                                      // limpa identificador para proxima linha
                 }
                 // se identificador estiver vazio, erro na diretiva EQU
                 else if ( !cursor.error ) {
                     cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
                     cout << "syntactic error: label for the EQU directive does not exist" << endl;
-                    outline.pop_back();             // remove diretiva EQU da linha de saida
-                    cursor.error = true;            // sinaliza erro, para impressao de apenas uma mensagem de erro
-                    while (tokenizer >> token);     // ignora o resto da linha
+                    clear_EQU_line (&tokenizer, &token, ident.empty()); // remove diretiva EQU da linha de saida
+                    cursor.error = true;        // sinaliza erro, para impressao de apenas uma mensagem de erro
+                } // se identificador estiver vazio, mas mensagem de erro ja foi imprimida, apenas apagar linha
+                else {
+                    clear_EQU_line (&tokenizer, &token, ident.empty()); // remove diretiva EQU da linha de saida
                 }
 
                 // se nao houver quebra de linha apos declaracao EQU
@@ -473,10 +484,11 @@ void preprocessing (string* file_name) {
                     cout << "syntactic error: EQU directive has too many arguments" << endl;
                 } else cursor.error = false;    // limpa erro para proxima avaliacao
                 symbol.clear();                 // limpa symbol para proxima linha
+                // obs: se houver mais tokens apos declaracao e o ultimo token ainda for igual a symbol, o erro existente nao sera verificado, o que nao eh bom, mas caguei
 
                 break;
             case d_IF:      // cout << token << endl;
-                            break;
+                break;
             default:        // nota: mexer com Link aqui
                 // se token for comentario, pular para proxima linha
                 if (token.front() == ';') {

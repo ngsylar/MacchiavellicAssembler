@@ -36,12 +36,16 @@ SECTION DATA
 9joy: const 3
 g4y: space
 umtestebacanabembananaparatestarseissofuncionacarau: SPACE
+OLAZINHO: EQU 47
 cag@$o: space
+OLAZINHO
 mey_av: space
 m4ria: BOLA
 _mey_av: space
+OLAZINHO: EQU 32
 __meyav: blobsky: space
 meyav_: space
 cag%$o: const 3
+OLAZINHO
 g00ai: const 2
 substitoar: BOLA
