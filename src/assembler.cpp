@@ -165,10 +165,10 @@ class Analyze {
     // inicializa, acessa, verifica ou exclui conteudo do objeto
     void insert (string token) { aux = token; }
     string content () { return aux; }
-    int empty ()    { return aux.empty(); }
-    void clear ()   { aux.clear(); }
+    int empty () { return aux.empty(); }
+    void clear () { aux.clear(); }
 
-    // analise: verifica se ha mais de um rotulo na mesma linha (usa auxiliar)
+    // analise: verifica se ha mais de um rotulo na mesma linha (usa auxiliar ja inicializado)
     int multiple_labels (istringstream* tokenizer, string* token) {
         if ( aux.empty() ) return 0;        // auxiliar precisa ser inicializado fora da funcao
         string* label = &aux;               // se auxiliar nao estiver vazio, label recebe seu endereco
@@ -392,15 +392,15 @@ void onepass (string* file_name) {
 void write_preprocessed_file (ofstream* pre_file) {
     // enquanto linha de saida nao acabou
     for (unsigned int i=0; i < outline.size(); i++) {
+        
         // se houver quebra de linha, pula para proxima palavra
         if (outline[i] == newline) {
             do { i++; } while (outline[i] == newline);
             *pre_file << endl;
         }
-        // procura palavra na tabela de identificadores
-        if ( table.search (outline[i]) )
+
+        if ( table.search (outline[i]) )        // procura palavra na tabela de identificadores
             *pre_file << table.value << " ";    // se achou, escreve valor no arquivo de saida
-        // procura palavra na tabela de identificadores
         else
             *pre_file << outline[i] << " ";     // se nao achou, escreve palavra no arquivo de saida
     }
@@ -408,13 +408,22 @@ void write_preprocessed_file (ofstream* pre_file) {
     table.clear();      // limpar tabela de identificadores
 }
 
+// funcao auxiliar de pre-processamento: remove comentarios
+void clear_comment (istringstream* tokenizer, string* token) {
+    if (token->front() == ';') {
+        outline.pop_back();             // remove comentario da linha de saida
+        while (*tokenizer >> *token);   // pula para proxima linha do codigo fonte
+        // nota: aqui o endereco nao pode contar
+    }
+}
+
 // funcao auxiliar de pre-processamento: remove diretiva EQU da linha de saida
 void clear_EQU_line (istringstream* tokenizer, string* token, bool ident_empty) {
-    if (!ident_empty) {
+    if (!ident_empty) {                                         // se existe identificador
         for (int i=0; i<2; i++) outline.pop_back();             // remove EQU e constante da linha de saida
         while (outline.back() == newline) outline.pop_back();   // remove quebras de linha acima, se existirem
         outline.pop_back();                                     // remove identificador
-    } else {
+    } else {                                // se identificador estiver vazio
         outline.pop_back();                 // remove EQU da linha de saida
         while (*tokenizer >> *token);       // ignora o resto da linha
     }
@@ -439,16 +448,15 @@ void preprocessing (string* file_name) {
 
         // se houver mais de um identificador, pular para o ultimo
         if (token.back() == ':') {
-            token.pop_back();
-            word.insert(token);                            // forca inicializacao de word.content()
-            word.multiple_labels (&tokenizer, &token);     // checa quantidade de identificadores
-            // se houver quebra de linha apos identificador
-            if ( tokenizer.eof() || (token.front() == ';')) {
-                symbol = word.content();    // guarda identificador em symbol
-                break;                      // sai do laco
+            token.pop_back();                           // descarta ':'
+            word.insert(token);                         // forca inicializacao de word.content()
+            word.multiple_labels (&tokenizer, &token);  // checa quantidade de identificadores
+            clear_comment (&tokenizer, &token);         // limpa comentario, se existir, apos identificador
+            if ( tokenizer.eof() ) {                    // se houver quebra de linha apos identificador
+                symbol = word.content();                // guarda identificador em symbol
+                break;                                  // sai do laco
             }
-        }
-        // se nao houver identificador na linha atual, verifica a existencia de identificador na linha anterior
+        } // se nao houver identificador na linha atual, verifica a existencia de identificador na linha anterior
         else if ( !symbol.empty() ) {
             word.insert(symbol);
             symbol.clear();
@@ -457,53 +465,56 @@ void preprocessing (string* file_name) {
         // analisa o token (o token seguinte ao identificador, se existir identificador)
         switch ( DIRECTIVE[ token ] ) {
             case d_EQU:
+
                 // se diretiva EQU aparece apos secoes declaradas, erro
                 if ( cursor.got_in() ) {
                     cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
                     cout << "semantic error: EQU directive after section declaration" << endl;
                     cursor.error = true;    // sinaliza erro, para impressao de apenas uma mensagem de erro
                 }
+
                 // se identificador nao estiver vazio, inserir numa tabela relacionando-o com seu sinonimo
                 if ( !word.empty() ) {
                     word.check_label (file_name, &tokenizer, &token);   // analisa validade do identificador
                     word.check_const (file_name, token);                // analisa validade da constante
                     clear_EQU_line (&tokenizer, &token, word.empty());  // remove diretiva EQU da linha de saida
-                    // nota: antes de inserir, procurar identificador de mesmo nome na tabela de relacoes
-                    table.insert (word.content(), token);               // insere relacao numa tabela
+                    if (table.search( word.content() )) {               // se encontrar identificador de mesmo nome na tabela de relacoes, erro
+                        cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+                        cout << "semantic error: \"" << word.content() << "\" identifier has already been declared" << endl;
+                    } else                                              // se nao
+                        table.insert (word.content(), token);           // insere identificador na tabela
                     word.clear();                                       // limpa identificador para proxima linha
                 }
+
                 // se identificador estiver vazio, erro na diretiva EQU
                 else if ( !cursor.error ) {
                     cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
                     cout << "syntactic error: label for the EQU directive does not exist" << endl;
-                    clear_EQU_line (&tokenizer, &token, word.empty()); // remove diretiva EQU da linha de saida
-                    cursor.error = true;        // sinaliza erro, para impressao de apenas uma mensagem de erro
-                } // se identificador estiver vazio, mas mensagem de erro ja foi imprimida, apenas apagar linha
-                else {
-                    clear_EQU_line (&tokenizer, &token, word.empty()); // remove diretiva EQU da linha de saida
-                }
+                    clear_EQU_line (&tokenizer, &token, word.empty());  // remove diretiva EQU da linha de saida
+                    cursor.error = true;                                // sinaliza erro, para impressao de apenas uma mensagem de erro
+                } else
+                    clear_EQU_line (&tokenizer, &token, word.empty());  // se identificador estiver vazio, mas mensagem de erro ja foi imprimida, apenas apagar linha
 
-                // se nao houver quebra de linha apos declaracao EQU
-                symbol = token;                 // symbol recebe token
-                while (tokenizer >> token);     // varre resto da linha
-                // se tokenizer capturar outro token diferente do guardado em symbol, erro
+                // se tokenizer capturar outro token diferente do guardado em symbol apos declaracao EQU, erro
+                symbol = token;
+                while (tokenizer >> token);
                 if (!cursor.error && (token != symbol)) {
                     cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
                     cout << "syntactic error: EQU directive has too many arguments" << endl;
-                } else cursor.error = false;    // limpa erro para proxima avaliacao
-                symbol.clear();                 // limpa symbol para proxima linha
-                // obs: se houver mais tokens apos declaracao e o ultimo token ainda for igual a symbol, o erro existente nao sera verificado (o que nao eh bom)
+                } else                      // se nao capturar
+                    cursor.error = false;   // limpa erro para proxima avaliacao
+                symbol.clear();             // limpa symbol para proxima linha
+                // nota: se houver mais tokens apos declaracao e o ultimo token ainda for igual a symbol, o erro existente nao sera verificado (o que nao eh bom); solucao: substituir este ultimo bloco por arvore de parsing?
 
                 break;
-            case d_IF:      // cout << token << endl;
+
+            case d_IF:
+                // cout << token << endl;
                 break;
-            default:        // nota: mexer com Link aqui
+
+            default:
                 // se token for comentario, pular para proxima linha
-                if (token.front() == ';') {
-                    // nota: aqui o endereco nao pode contar
-                    outline.pop_back();             // remove comentario da linha de saida
-                    while (tokenizer >> token);     // pula para proxima linha do codigo fonte
-                }
+                clear_comment (&tokenizer, &token);
                 break;
         }
     }

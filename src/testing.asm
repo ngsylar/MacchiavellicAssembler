@@ -1,7 +1,7 @@
 XIS: EQU 0x1010 15
 SECTION
 TRIANGULO: EQU 0xg10
-BOLA:
+BOLA: ;comentario legal legalzao incrivel
 
 
 EQU 4
