@@ -5,8 +5,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
-#include <queue>
-#include <list>
+#include <vector>
 #include <map>
 using namespace std;
 
@@ -18,7 +17,7 @@ static string line;             // guarda uma linha do codigo fonte ou pre-proce
 static string symbol;           // auxiliar para guardar um token
 static int line_number = 0;     // conta a posicao da linha no codigo fonte
 static int address = 0;         // conta a posicao de memoria do token
-static list<string> outline;    // linha do codigo de saida
+static vector<string> outline;  // linha do codigo de saida
 static const string newline = ".newline.";      // identificador de nova linha para codigo de saida
 
 // ----------------------------------------------------------------------------------------------------
@@ -125,7 +124,7 @@ class Link {
     }
 };
 static Link relation;
-static queue<Link> table;
+static vector<Link> table;
 
 // ----------------------------------------------------------------------------------------------------
 //    ANALISE DE CODIGO
@@ -363,47 +362,46 @@ void onepass (string* file_name) {
 
 // funcao auxiliar de pre-processamento: escreve codigo pre-processado
 void write_preprocessed_file (ofstream* pre_file) {
-    queue<Link> it;
-
-    while (!outline.empty()) {
-        if (outline.front() == newline) {
-            // pre_file << outline.front() << endl;
+    // enquanto linha de saida nao acabou
+    for (unsigned int i=0; i < outline.size(); i++) {
+        // se palavra atual for quebra de linha, escreve no arquivo de saida
+        if (outline[i] == newline) {
             *pre_file << endl;
         } else {
-            it = table;
+            // se nao, procura palavra na tabela de identificadores
             try {
-                while ( !it.empty() ) {
-                    relation = it.front();
-                    it.pop();
-                    if (outline.front() == relation.symbol) {
+                // enquanto tabela nao acabou
+                for (unsigned int j=0; j < table.size(); j++) {
+                    // se palavra estiver na tabela, achou
+                    relation = table[j];
+                    if (outline[i] == relation.symbol) {
                         throw 1;
                         break;
-                    } else if ( it.empty() ) {
+                    // se nao estiver na tabela, nao achou
+                    } else if (j == table.size()-1) {
                         throw 0;
+                        break;
                     }
                 }
-            } catch (int linked) {
-                if (linked) {
+            } catch (int found) {
+                // se achou, escreve valor no arquivo de saida
+                if (found) {
                     *pre_file << relation.value << " ";
-                } else if (!linked) {
-                    *pre_file << outline.front() << " ";
+                // se nao achou, escreve palavra no arquivo de saida
+                } else if (!found) {
+                    *pre_file << outline[i] << " ";
                 }
             }
         }
-        outline.pop_front();
     }
+    table.clear();  // ao final, limpa tabela de identificadores
 }
 
 // funcao auxiliar de pre-processamento: remove diretiva EQU da linha de saida
 void clear_EQU_line (istringstream* tokenizer, string* token, bool ident_empty) {
     if (!ident_empty) {
-        // for (int i=0; i<2; i++) outline.pop_back();             // remove EQU e constante da linha de saida
-            // cout << outline.back() << endl;
-            outline.pop_back();
-            // cout << outline.back() << endl;
-            outline.pop_back();
+        for (int i=0; i<2; i++) outline.pop_back();             // remove EQU e constante da linha de saida
         while (outline.back() == newline) outline.pop_back();   // remove quebras de linha acima, se existirem
-            // cout << outline.back() << endl;
         outline.pop_back();                                     // remove identificador
     } else {
         outline.pop_back();                 // remove EQU da linha de saida
@@ -413,7 +411,7 @@ void clear_EQU_line (istringstream* tokenizer, string* token, bool ident_empty) 
 
 // pre-processamento
 void preprocessing (string* file_name) {
-    Analyze ident;                  // identificador a ser analisado
+    Analyze word;                   // token a ser analisado
     istringstream tokenizer {line}; // decompositor de linha
     string token;                   // string lida na linha de entrada
     line_number++;
@@ -424,55 +422,55 @@ void preprocessing (string* file_name) {
         // se token for diretiva SECTION, verificar localizacao e contagem
         switch ( DIRECTIVE[token] ) {
             case d_SECTION:
-                ident.inside_section (&tokenizer, &token);
+                word.inside_section (&tokenizer, &token);
             default: break;
         }
 
         // se houver mais de um identificador, pular para o ultimo
         if (token.back() == ':') {
             token.pop_back();
-            ident.insert(token);                            // forca inicializacao de ident
-            ident.multiple_labels (&tokenizer, &token);     // checa quantidade de identificadores
+            word.insert(token);                            // forca inicializacao de word.content
+            word.multiple_labels (&tokenizer, &token);     // checa quantidade de identificadores
             // se houver quebra de linha apos identificador
             if ( tokenizer.eof() || (token.front() == ';')) {
-                symbol = ident.content;     // guarda identificador em symbol
+                symbol = word.content;      // guarda identificador em symbol
                 break;                      // sai do laco
             }
         }
         // se nao houver identificador na linha atual, verifica a existencia de identificador na linha anterior
         else if ( !symbol.empty() ) {
-            ident.insert(symbol);
+            word.insert(symbol);
             symbol.clear();
         }
 
         // analisa o token (o token seguinte ao identificador, se existir identificador)
         switch ( DIRECTIVE[ token ] ) {
             case d_EQU:
-                // se diretiva EQU apos secoes declaradas, erro
+                // se diretiva EQU aparece apos secoes declaradas, erro
                 if ( cursor.got_in() ) {
                     cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
                     cout << "semantic error: EQU directive after section declaration" << endl;
                     cursor.error = true;    // sinaliza erro, para impressao de apenas uma mensagem de erro
                 }
                 // se identificador nao estiver vazio, inserir numa tabela relacionando-o com seu sinonimo
-                if ( !ident.empty() ) {
-                    ident.check_label (file_name, &tokenizer, &token);  // analisa validade do identificador
-                    ident.check_const (file_name, token);               // analisa validade da constante
-                    clear_EQU_line (&tokenizer, &token, ident.empty()); // remove diretiva EQU da linha de saida
+                if ( !word.empty() ) {
+                    word.check_label (file_name, &tokenizer, &token);   // analisa validade do identificador
+                    word.check_const (file_name, token);                // analisa validade da constante
+                    clear_EQU_line (&tokenizer, &token, word.empty());  // remove diretiva EQU da linha de saida
                     // nota: antes de inserir, procurar identificador de mesmo nome na tabela de relacoes
-                    relation.insert (ident.content, token);             // relaciona simbolo e valor
-                    table.push (relation);                              // insere relacao numa tabela
-                    ident.clear();                                      // limpa identificador para proxima linha
+                    relation.insert (word.content, token);              // relaciona simbolo e valor
+                    table.push_back (relation);                         // insere relacao numa tabela
+                    word.clear();                                       // limpa identificador para proxima linha
                 }
                 // se identificador estiver vazio, erro na diretiva EQU
                 else if ( !cursor.error ) {
                     cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
                     cout << "syntactic error: label for the EQU directive does not exist" << endl;
-                    clear_EQU_line (&tokenizer, &token, ident.empty()); // remove diretiva EQU da linha de saida
+                    clear_EQU_line (&tokenizer, &token, word.empty()); // remove diretiva EQU da linha de saida
                     cursor.error = true;        // sinaliza erro, para impressao de apenas uma mensagem de erro
                 } // se identificador estiver vazio, mas mensagem de erro ja foi imprimida, apenas apagar linha
                 else {
-                    clear_EQU_line (&tokenizer, &token, ident.empty()); // remove diretiva EQU da linha de saida
+                    clear_EQU_line (&tokenizer, &token, word.empty()); // remove diretiva EQU da linha de saida
                 }
 
                 // se nao houver quebra de linha apos declaracao EQU
@@ -510,7 +508,7 @@ int main () {
     stringSwitch();     // inicializa palavras reservadas
 
     // abre arquivo contendo o codigo fonte
-    string file_name = "testing.asm"; // essa string depois vai ser o argumento iniciado junto ao programa na linha de comando
+    string file_name = "testing.asm"; // nota: essa string depois vai ser o argumento iniciado junto ao programa na linha de comando
     ifstream file (file_name);
 
     // cria um arquivo contendo o codigo pre-processado
