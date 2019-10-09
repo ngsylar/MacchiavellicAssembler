@@ -6,6 +6,7 @@
 #include <fstream>
 #include <sstream>
 #include <vector>
+#include <queue>
 #include <map>
 using namespace std;
 
@@ -13,8 +14,8 @@ using namespace std;
 //    VARIAVEIS AUXILIARES
 // ----------------------------------------------------------------------------------------------------
 
-static string line;             // guarda uma linha do codigo fonte ou pre-processado 
-static string symbol;           // auxiliar para guardar um token
+static string line;             // guarda uma linha do codigo fonte ou pre-processado
+static string token_aux;        // auxiliar para guardar um token
 static int line_number = 0;     // conta a posicao da linha no codigo fonte
 static int address = 0;         // conta a posicao de memoria do token
 static vector<string> outline;  // linha do codigo de saida
@@ -53,7 +54,7 @@ void stringSwitch () {
     DIRECTIVE["CONST"]      = d_CONST;
     DIRECTIVE["EQU"]        = d_EQU;
     DIRECTIVE["IF"]         = d_IF;
-    
+
     SECTION["TEXT"] = s_TEXT;
     SECTION["DATA"] = s_DATA;
 }
@@ -67,7 +68,7 @@ void stringSwitch () {
 // };
 
 // classe para marcar secao atual no processo de analise
-class Bookmark {
+class Marker {
     public:
     int placement = s_null;
     int text_count = 0;
@@ -109,14 +110,32 @@ class Bookmark {
         error = false;
     }
 };
-static Bookmark cursor;
+static Marker cursor;
+
+//classe dos simbolos
+class Simbolo {
+    public:
+    queue <int> lista;
+    string simbolo;
+    int valor;
+    bool definido;
+};
+
+vector<Simbolo> tabelasimbolos; //tabela de simbolos
+
+Simbolo auxiliar;
+
+    //pega uma linha, le palavra a palavra
+
+
+
 
 // classe para criar tabela de simbolos
-class Link {
+class Identifier {
     public:
-    vector<Link> t_body;    // corpo da tabela
-    string symbol;          // identificador ou rotulo
-    string value;           // sinonimo ou simbolo
+    vector<Identifier> t_body;  // corpo da tabela
+    string symbol;              // identificador ou rotulo
+    string value;               // sinonimo ou constante
 
     // insere elementos na tabela
     void insert (string symbol, string value) {
@@ -125,7 +144,7 @@ class Link {
         this->value = value;
 
         // insere linha na tabela
-        Link aux;
+        Identifier aux;
         aux.symbol = symbol;
         aux.value = value;
         t_body.push_back (aux);
@@ -151,7 +170,7 @@ class Link {
         t_body.clear();
     }
 };
-static Link table;
+static Identifier ident_table;
 
 // ----------------------------------------------------------------------------------------------------
 //    ANALISE DE CODIGO
@@ -161,14 +180,14 @@ static Link table;
 class Analyze {
     public:
     string aux;
-    
+
     // inicializa, acessa, verifica ou exclui conteudo do objeto
     void insert (string token) { aux = token; }
     string content () { return aux; }
     int empty () { return aux.empty(); }
     void clear () { aux.clear(); }
 
-    // analise: verifica se ha mais de um rotulo na mesma linha (usa auxiliar ja inicializado)
+    // analise: verifica se ha mais de um rotulo na mesma linha (usa auxiliar inicializado)
     int multiple_labels (istringstream* tokenizer, string* token) {
         if ( aux.empty() ) return 0;        // auxiliar precisa ser inicializado fora da funcao
         string* label = &aux;               // se auxiliar nao estiver vazio, label recebe seu endereco
@@ -270,6 +289,8 @@ class Analyze {
             *tokenizer >> *token;               // pega proximo token
             outline.push_back(*token);          // insere token na lina de saida
 
+            // nota: fazer uma arvore de parsing aqui ou depois do proximo bloco (tratar SECTION com mais de um argumento)
+
             switch ( SECTION[*token] ) {
                 case s_TEXT:                    // se sucessor for TEXT
                     cursor.placement = s_TEXT;  // marcador recebe secao TEXT
@@ -290,7 +311,7 @@ class Analyze {
         }
     }
     // analise: verifica a validade da secao declarada
-    void check_section (string* file_name, istringstream* tokenizer, string* token) {    
+    void check_section (string* file_name, istringstream* tokenizer, string* token) {
         inside_section(tokenizer, token);
 
         // se houver erro em SECTION
@@ -321,9 +342,18 @@ class Analyze {
 void onepass (string* file_name) {
     istringstream tokenizer {line};
     string token;
+    Analyze label;
+    int tinhalabelanterior = 0;
+    int definicao, i, endaux, achou;
+
     // line_number++;
 
-    while (tokenizer >> token) {
+
+    while ( !tokenizer.eof() ) {
+        if(tinhalabelanterior == 0){
+            tokenizer >> token;
+        }
+
         // cout << token << endl;
 
         // switch ( DIRECTIVE[token] ) {
@@ -371,8 +401,11 @@ void onepass (string* file_name) {
             case STOP:      // cout << token << endl;
                             break;
             default:
+                tinhalabelanterior = 1;
+                definicao = 0;
                 // se token for rotulo
                 if ( token.back() == ':' ) {
+                    definicao = 1;       //se tiver : eh definicao
                     // cout << address << ' ' << token << endl;
                     token.pop_back();
                     static Analyze label;
@@ -380,8 +413,60 @@ void onepass (string* file_name) {
                     address++; // precisa ajustar para space
                 }
                 break;
+
+
+                // nao tenho certeza, mas acho q vem aqui
+                achou=0;
+
+                for(i=0; i<tabelasimbolos.size(); i++){    // vai varrer o vector da tabela de simbolos buscando o token (nao eh endereco ou instrucao)
+
+                    if (tabelasimbolos[i].simbolo == label.content()){        //encontrou
+                        achou = 1;                                  //flag = ja tem esse simbolo na tabela
+
+                        if(tabelasimbolos[i].definido == false){    // se nesse lugar da tabela o a definicao for false, adicionar endereco na fila
+                            if(definicao==1){
+                                while(!tabelasimbolos[i].lista.empty()) {
+                                    endaux = tabelasimbolos[i].lista.front(); // auxiliar recebe a frente da fila
+                                    tabelasimbolos[i].lista.pop(); //retira a frente
+                                    // vai na saida e coloca nesse endereco o valor correto
+                                }
+                                tabelasimbolos[i].valor = //o endereço certo;
+                                tabelasimbolos[i].definido = true; //agora esta definido
+                            }
+                            if(definicao==0){
+                                tabelasimbolos[i].lista.push(address); //endereco
+                            }
+                        }
+
+                        if(tabelasimbolos[i].definido == true) { //se ja estava definido
+                            //o endereco pro arquivo saida - se esse simbolo encontrado ja for a definicao, coloca esse endereco no arquivo de saida
+                        }
+
+
+                        break;
+                    }
+
+                }
+
+                if (achou==0){      // se nao achou na tabela, vai colocar na tabela
+                    auxiliar.simbolo = label.content(); //simbolo
+
+
+                    if (definicao==1){          //se tiver :, eh definicao
+                        auxiliar.valor = //o endereco;
+                        auxiliar.definido = true;
+                    }
+                    if(definicao==0){           //se nao tiver :, eh uso
+                        auxiliar.lista.push(address); //o endereco); - endereco
+                        auxiliar.definido = false;
+                    }
+
+                }
+            tabelasimbolos.push_back(auxiliar);
+            
         }
     }
+    //pesquisar onde
 }
 
 // ----------------------------------------------------------------------------------------------------
@@ -392,20 +477,20 @@ void onepass (string* file_name) {
 void write_preprocessed_file (ofstream* pre_file) {
     // enquanto linha de saida nao acabou
     for (unsigned int i=0; i < outline.size(); i++) {
-        
+
         // se houver quebra de linha, pula para proxima palavra
         if (outline[i] == newline) {
             do { i++; } while (outline[i] == newline);
             *pre_file << endl;
         }
 
-        if ( table.search (outline[i]) )        // procura palavra na tabela de identificadores
-            *pre_file << table.value << " ";    // se achou, escreve valor no arquivo de saida
-        else
-            *pre_file << outline[i] << " ";     // se nao achou, escreve palavra no arquivo de saida
+        if ( ident_table.search (outline[i]) )      // procura palavra na tabela de identificadores
+            *pre_file << ident_table.value << " ";  // se achou, escreve valor no arquivo de saida
+        else                                        // se nao achou
+            *pre_file << outline[i] << " ";         // escreve palavra no arquivo de saida
     }
-    outline.clear();    // ao final, limpar linha de saida e
-    table.clear();      // limpar tabela de identificadores
+    outline.clear();        // ao final, limpar linha de saida e
+    ident_table.clear();    // limpar tabela de identificadores
 }
 
 // funcao auxiliar de pre-processamento: remove comentarios
@@ -453,13 +538,13 @@ void preprocessing (string* file_name) {
             word.multiple_labels (&tokenizer, &token);  // checa quantidade de identificadores
             clear_comment (&tokenizer, &token);         // limpa comentario, se existir, apos identificador
             if ( tokenizer.eof() ) {                    // se houver quebra de linha apos identificador
-                symbol = word.content();                // guarda identificador em symbol
+                token_aux = word.content();             // guarda identificador em token_aux
                 break;                                  // sai do laco
             }
         } // se nao houver identificador na linha atual, verifica a existencia de identificador na linha anterior
-        else if ( !symbol.empty() ) {
-            word.insert(symbol);
-            symbol.clear();
+        else if ( !token_aux.empty() ) {
+            word.insert(token_aux);
+            token_aux.clear();
         }
 
         // analisa o token (o token seguinte ao identificador, se existir identificador)
@@ -478,11 +563,11 @@ void preprocessing (string* file_name) {
                     word.check_label (file_name, &tokenizer, &token);   // analisa validade do identificador
                     word.check_const (file_name, token);                // analisa validade da constante
                     clear_EQU_line (&tokenizer, &token, word.empty());  // remove diretiva EQU da linha de saida
-                    if (table.search( word.content() )) {               // se encontrar identificador de mesmo nome na tabela de relacoes, erro
+                    if (ident_table.search( word.content() )) {         // se encontrar identificador de mesmo nome na tabela de relacoes, erro
                         cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
                         cout << "semantic error: \"" << word.content() << "\" identifier has already been declared" << endl;
                     } else                                              // se nao
-                        table.insert (word.content(), token);           // insere identificador na tabela
+                        ident_table.insert (word.content(), token);     // insere identificador na tabela
                     word.clear();                                       // limpa identificador para proxima linha
                 }
 
@@ -492,19 +577,19 @@ void preprocessing (string* file_name) {
                     cout << "syntactic error: label for the EQU directive does not exist" << endl;
                     clear_EQU_line (&tokenizer, &token, word.empty());  // remove diretiva EQU da linha de saida
                     cursor.error = true;                                // sinaliza erro, para impressao de apenas uma mensagem de erro
-                } else
-                    clear_EQU_line (&tokenizer, &token, word.empty());  // se identificador estiver vazio, mas mensagem de erro ja foi imprimida, apenas apagar linha
+                } else                                                  // se identificador estiver vazio, mas mensagem de erro ja foi imprimida
+                    clear_EQU_line (&tokenizer, &token, word.empty());  // entao apenas apagar linha
 
-                // se tokenizer capturar outro token diferente do guardado em symbol apos declaracao EQU, erro
-                symbol = token;
+                // se tokenizer capturar outro token diferente do guardado em token_aux apos declaracao EQU, erro
+                token_aux = token;
                 while (tokenizer >> token);
-                if (!cursor.error && (token != symbol)) {
+                if (!cursor.error && (token != token_aux)) {
                     cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
                     cout << "syntactic error: EQU directive has too many arguments" << endl;
                 } else                      // se nao capturar
                     cursor.error = false;   // limpa erro para proxima avaliacao
-                symbol.clear();             // limpa symbol para proxima linha
-                // nota: se houver mais tokens apos declaracao e o ultimo token ainda for igual a symbol, o erro existente nao sera verificado (o que nao eh bom); solucao: substituir este ultimo bloco por arvore de parsing?
+                token_aux.clear();          // limpa token_aux para proxima linha
+                // nota: se houver mais tokens apos declaracao e o ultimo token ainda for igual a token_aux, o erro existente nao sera verificado (o que nao eh bom); solucao: substituir este ultimo bloco por arvore de parsing?
 
                 break;
 
@@ -545,7 +630,7 @@ int main () {
             preprocessing (&file_name);             // realiza o pre-processamento
             // onepass (&file_name); // vai precisar entrar em outro laco fora deste, usando como arquivo fonte o codigo pre processado
             // cout << line << endl;
-        } // nota: limpar o Bookmark
+        } // nota: limpar o Marker
         file.close();
     }
     else cout << endl << "ERROR: File not found!";
