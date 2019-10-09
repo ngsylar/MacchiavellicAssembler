@@ -285,28 +285,26 @@ class Analyze {
     }
     // analise: localiza secao atual e incrementa sua contagem
     void inside_section (istringstream* tokenizer, string* token) {
-        if ( !tokenizer->eof() ) {              // se linha nao acabou
-            *tokenizer >> *token;               // pega proximo token
+        // se linha nao acabou, pega proximo token
+        if (!tokenizer->eof() && (*tokenizer >> *token)) {
             outline.push_back(*token);          // insere token na lina de saida
-
-            // nota: fazer uma arvore de parsing aqui ou depois do proximo bloco (tratar SECTION com mais de um argumento)
 
             switch ( SECTION[*token] ) {
                 case s_TEXT:                    // se sucessor for TEXT
-                    cursor.placement = s_TEXT;  // marcador recebe secao TEXT
+                    cursor.placement = s_TEXT;  // marcador recebe secao tipo TEXT
                     cursor.text_count++;        // incrementa numero de secoes TEXT encontradas
                     break;
                 case s_DATA:                    // se sucessor for DATA
-                    cursor.placement = s_DATA;  // marcador recebe secao DATA
+                    cursor.placement = s_DATA;  // marcador recebe secao tipo DATA
                     cursor.data_count++;
                     break;
                 default:                        // se sucessor for invalido
-                    cursor.placement = s_null;  // marcador recebe secao nenhuma
+                    cursor.placement = s_null;  // marcador recebe tipo vazio
                     cursor.error = true;        // sinaliza erro
                     break;
             }
         } else {                                // se linha acabou
-            cursor.placement = s_null;          // marcador recebe secao nenhuma
+            cursor.placement = s_null;          // marcador recebe tipo vazio
             cursor.error = true;                // sinaliza erro
         }
     }
@@ -580,16 +578,14 @@ void preprocessing (string* file_name) {
                 } else                                                  // se identificador estiver vazio, mas mensagem de erro ja foi imprimida
                     clear_EQU_line (&tokenizer, &token, word.empty());  // entao apenas apagar linha
 
-                // se tokenizer capturar outro token diferente do guardado em token_aux apos declaracao EQU, erro
-                token_aux = token;
-                while (tokenizer >> token);
-                if (!cursor.error && (token != token_aux)) {
-                    cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-                    cout << "syntactic error: EQU directive has too many arguments" << endl;
-                } else                      // se nao capturar
-                    cursor.error = false;   // limpa erro para proxima avaliacao
-                token_aux.clear();          // limpa token_aux para proxima linha
-                // nota: se houver mais tokens apos declaracao e o ultimo token ainda for igual a token_aux, o erro existente nao sera verificado (o que nao eh bom); solucao: substituir este ultimo bloco por arvore de parsing?
+                // se nao houve mensagem de erro anterior e se linha nao acabou
+                if (!cursor.error && !tokenizer.eof()) {
+                    if (tokenizer >> token) {           // se tokenizer capturar outro token, erro
+                        cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+                        cout << "syntactic error: EQU directive has too many arguments" << endl;
+                        while (tokenizer >> token);     // ignora o restante da linha
+                    }                           // se houve mensagem de erro anterior
+                } else cursor.error = false;    // limpa erro para proxima avaliacao
 
                 break;
 
