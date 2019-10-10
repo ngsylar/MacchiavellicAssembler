@@ -1,11 +1,13 @@
-XIS: EQU 0x1010 0x1010
-SECTION           
+__meyav: blobsky: EQU 3
+XIS: EQU 0x1010         0x1010
+SECTION           ; blah
 TRIANGULO: EQU 0xg10
-BOLA: ;comentario legal legalzao incrivel
+BOLA:        ;comentario legal legalzao incrivel
 
 
-EQU 4
+EQU       4
 EQU 300
+1BRASil: EQU
 SECTION TEXT
 INPUT OLD_DATA
 LOAD OLD_DATA
@@ -22,7 +24,7 @@ SUB TMP_DATA
 STORE TMP_DATA ;pedro
 OUTPUT TMP_DATA
 COPY NEW_DATA,OLD_DATA
-LOAD OLD_DATA ;testinho teste
+LOAD OLD_DATA               ; esse  arquivo eh propositalmente cheio de erros
 JMPP L1
 XIS
 STOP
@@ -41,10 +43,11 @@ OLAZINHO: EQU 47
 cag@$o: space
 OLAZINHO
 mey_av: space
-m4ria: BOLA
+m4ria:     ;   outro comentario  kkkkk
+
+BOLA
 _mey_av: space
 OLAZINHO: EQU 32
-__meyav: blobsky: space
 meyav_: space
 cag%$o: const 3
 OLAZINHO
