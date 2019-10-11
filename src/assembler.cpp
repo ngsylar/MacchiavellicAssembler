@@ -504,21 +504,21 @@ void write_preprocessed_file (ofstream* pre_file) {
         // se palavra for rotulo, escreve no arquivo de saida e pula para proxima palavra
         if (outline[i].back() == ':') {
             *pre_file << outline[i] << " ";
-            do { i++; } while (((i+1) != outline.size()) && (outline[i] == newline));
+            if ((i+1) != outline.size())
+                do { i++; } while (((i+1) != outline.size()) && (outline[i] == newline));
         }
 
         switch ( DIRECTIVE[ outline[i] ] ) {
-            case d_IF:                                  // se palavra for diretiva IF
-                i++;                                    // pula para proxima palavra
-                if (outline[i] != "1") {                // se palavra for diferente de '1'
+            case d_IF:                              // se palavra for diretiva IF
+                if ((i+1) != outline.size()) i++;   // pula para proxima palavra
+                if (outline[i] != "1") {            // se palavra for diferente de '1'
                     // ignora quebra de linha e pula para proxima palavra
                     for (int j=0; j < 2; j++)
                         if ((i+1) != outline.size()) i++;
                     // se linha de saida ainda nao acabou, ignora a instrucao seguinte
-                    while (((i+1) != outline.size()) && (outline[i] != newline))
-                        i++;
-                } else {                                // se palavra for igual a 1
-                    i++;                                // ignora quebra de linha
+                    while (((i+1) != outline.size()) && (outline[i] != newline)) i++;
+                } else {                                // se palavra for igual a '1'
+                    if ((i+1) != outline.size()) i++;   // ignora quebra de linha
                 }
                 break;
 
