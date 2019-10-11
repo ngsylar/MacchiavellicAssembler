@@ -1,4 +1,7 @@
-__meyav: blobsky: EQU 3 ; dsjnds
+__meyav: ; delta
+
+
+blobsky: barberkill: EQU 3 ; dsjnds
 XIS: EQU 0x1010         0x1010
 SECTION           ; blah
 TRIANGULO: EQU 0xg1ho0
@@ -35,6 +38,7 @@ DOIS: CONST 2
 OLD_DATA: SPACE
 NEW_DATA: SPACE
 SECTION SECTION
+IF  XIS   35    ;    AUE LAIA UHA
 TMP_DATA: SPACE
 SECTION TEXT
 SECTION DATA
@@ -57,3 +61,10 @@ g00ai: const 2
 substitoar: BOLA
 OMEN: equ equ 5
 right: equ 6 ; cdscs
+ADD: EQU 77
+ADD
+IF 1 TRIANGULO
+XIS
+TRIANGULO
+IF ADD
+BOLA

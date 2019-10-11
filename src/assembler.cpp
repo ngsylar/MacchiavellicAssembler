@@ -131,11 +131,12 @@ Simbolo auxiliar;
 
 
 // classe para criar tabela de simbolos
+class Identifier;           // linha da tabela
+vector<Identifier> t_body;  // corpo da tabela
 class Identifier {
     public:
-    vector<Identifier> t_body;  // corpo da tabela
-    string symbol;              // identificador ou rotulo
-    string value;               // sinonimo ou constante
+    string symbol;          // identificador ou rotulo
+    string value;           // sinonimo ou constante
 
     // insere elementos na tabela
     void insert (string symbol, string value) {
@@ -177,8 +178,8 @@ static Identifier ident_table;
 
 // classe de metodos de analise de codigo
 class Analyze {
-    public:
     string aux;
+    public:
 
     // inicializa, acessa, verifica ou exclui conteudo do objeto
     void insert (string token) { aux = token; }
@@ -209,7 +210,7 @@ class Analyze {
         }
     }
     // analise: verifica validade dos rotulos inseridos no codigo fonte (usa ou cria auxiliar)
-    void check_label (string* file_name, string token) {
+    int check_label (string* file_name, string token) {
         bool init = false;
         if ( aux.empty() ) {    // se auxiliar nao foi inicializado
             aux = token;        // auxiliar recebe token
@@ -220,40 +221,37 @@ class Analyze {
         // se label for igual a uma palavra reservada
         if (((OPCODE[label] >= 1) && (OPCODE[label] <= 14)) || ((DIRECTIVE[label] >= 1) && (DIRECTIVE[label] <= 5)) || ((SECTION[label] >= 1) && (SECTION[label] <= 2))) {
             cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-            cout << "semantic error: invalid label (\"" << label << "\" is a keyword)" << endl;
+            cout << "semantic error: invalid label, \"" << label << "\" is a keyword" << endl;
+            return 0;
         }
         // se o primeiro caractere for um numero: erro
         if ((label.front() >= 48) && (label.front() <= 57)) {
             cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
             cout << "lexicon error: label \"" << label << "\" starts with a number" << endl;
+            return 0;
         }
         // se o rotulo eh maior que 50 caracteres: erro
         if (label.size() > 50) {
             cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
             cout << "lexicon error: label is longer than 50 characters:" << endl;
             cout << "\t\"" << label << "\"" << endl;
+            return 0;
         }
         // se o rotulo nao eh composto apenas por letras, numeros e underscore: erro
         for (unsigned int i = 0; i < label.size(); i++) {
             if ((label[i] != 95) && (!((label[i] >= 48) && (label[i] <= 57)) && !((label[i] >= 65) && (label[i] <= 90)))) {
                 cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
                 cout << "lexicon error: label \"" << label << "\" is not just letters, numbers or underscore" << endl;
-                break;
+                return 0;
             }
         }
-        // se auxiliar foi inicializado dentro da funcao, limpar auxiliar
-        if (init) aux.clear();
+        if (init) aux.clear();  // se auxiliar foi inicializado dentro da funcao, limpar auxiliar
+        return 1;               // se nenhum erro foi encontrado, retorna 1
     }
 
     // analise: verifica a validade de uma constante
     int check_const (string* file_name, string token) {
         string aux;
-
-        // se numero for negativo, guardar sinal
-        if (token[0] == '-') {
-            token.erase (0,1);
-            aux.append("-");
-        }
 
         // se numero estiver na base hexadecimal
         if ((token.size() > 2) && (token[0] == '0') && (token[1] == 'X')) {
@@ -268,7 +266,12 @@ class Analyze {
                 }
             }
         } else {
-            // se numero nao for hexadecimal, analisar como decimal
+            // se numero for negativo, guardar sinal
+            if (token[0] == '-') {
+                token.erase (0,1);
+                aux.append("-");
+            }
+            // se numero for inteiro
             aux.append(token);
             for (unsigned int i=0; i < token.size(); i++) {
                 // se numeo nao contem apenas digitos numericos, erro
@@ -282,7 +285,7 @@ class Analyze {
         return 1;
     }
 
-    // analise: define se token deve ser tradado como 
+    // analise: verifica validade de argumento passado a diretiva IF 
     void check_token (string* file_name, string token) {
         int valid_const;
 
@@ -497,10 +500,30 @@ void write_preprocessed_file (ofstream* pre_file) {
             *pre_file << endl;
         }
 
-        if ( ident_table.search (outline[i]) )      // procura palavra na tabela de identificadores
-            *pre_file << ident_table.value << " ";  // se achou, escreve valor no arquivo de saida
-        else                                        // se nao achou
-            *pre_file << outline[i] << " ";         // escreve palavra no arquivo de saida
+        // se palavra for rotulo, escreve no arquivo de saida e pula para proxima palavra
+        if (outline[i].back() == ':') {
+            *pre_file << outline[i] << " ";
+            do { i++; } while (outline[i] == newline);
+        }
+
+        switch ( DIRECTIVE[ outline[i] ] ) {
+            case d_IF:                                  // se palavra for diretiva IF
+                i++;                                    // pula para proxima palavra
+                if (outline[i] != "1") {                // se palavra for diferente de '1'
+                    i = i + 2;                          // ignora quebra de linha e pula para proxima palavra
+                    while (outline[i] != newline) i++;  // ignora a linha seguinte
+                } else {                                // se palavra for igual a 1
+                    i++;                                // ignora quebra de linha
+                }
+                break;
+
+            default:                                        // se palavra nao for diretiva
+                if ( ident_table.search (outline[i]) )      // procura palavra na tabela de identificadores
+                    *pre_file << ident_table.value << " ";  // se achou, escreve valor no arquivo de saida
+                else                                        // se nao achou
+                    *pre_file << outline[i] << " ";         // escreve palavra no arquivo de saida
+                break;
+        }
     }
     outline.clear();        // ao final, limpar linha de saida e
     ident_table.clear();    // limpar tabela de identificadores
@@ -575,19 +598,20 @@ void preprocessing (string* file_name) {
 
                 // se identificador nao estiver vazio, inserir numa tabela relacionando-o com seu sinonimo
                 if ( !word.empty() ) {
-                    word.check_label (file_name, token);                // analisa validade do identificador
-                    // se linha nao acabou, pega a constante se token nao for comentario
-                    if (!tokenizer.eof() && (tokenizer >> token) && !clear_comment (&tokenizer, &token, false)) {
-                        word.check_const (file_name, token);            // analisa validade da constante
-                        if (ident_table.search (word.content()) ) {     // se identificador ja estava na tabela, erro
+                    if (word.check_label (file_name, token)) {          // analisa validade do identificador
+                        // se linha nao acabou, pega a constante se token nao for comentario
+                        if (!tokenizer.eof() && (tokenizer >> token) && !clear_comment (&tokenizer, &token, false)) {
+                            word.check_const (file_name, token);            // analisa validade da constante
+                            if (ident_table.search (word.content()) ) {     // se identificador ja estava na tabela, erro
+                                cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+                                cout << "semantic error: label \"" << word.content() << "\" has already been declared" << endl;
+                            } else                                          // se identificador nao esta na tabela
+                                ident_table.insert (word.content(), token); // insere identificador na tabela
+                        } else {                                            // se linha acabou, erro
                             cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-                            cout << "semantic error: label \"" << word.content() << "\" has already been declared" << endl;
-                        } else                                          // se identificador nao esta na tabela
-                            ident_table.insert (word.content(), token); // insere identificador na tabela
-                    } else {                                            // se linha acabou, erro
-                        cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-                        cout << "syntactic error: missing constant in EQU statement" << endl;
-                    }
+                            cout << "syntactic error: missing constant in EQU statement" << endl;
+                        }
+                    } else while (tokenizer >> token);                  // se identificador for invalido, ignorar linha
                     clear_EQU_line (&tokenizer, &token, word.empty());  // remove diretiva EQU da linha de saida
                     word.clear();                                       // limpa identificador para proxima linha
                 }
@@ -599,18 +623,16 @@ void preprocessing (string* file_name) {
                     clear_EQU_line (&tokenizer, &token, word.empty());  // remove diretiva EQU da linha de saida
                 }
 
-                // se linha nao acabou e se tokenizer capturar outro token, erro
-                if (!tokenizer.eof() && (tokenizer >> token)) {
-                    // se token for comentario, pular para proxima linha, se nao mostra erro
-                    if (!clear_comment (&tokenizer, &token, false)) {
-                        cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-                        cout << "syntactic error: EQU directive has too many arguments" << endl;
-                        while (tokenizer >> token);     // ignora o restante da linha
-                    }
+                // se linha nao acabou, captura proximo token, se token for comentario, pula linha, se nao erro
+                if (!tokenizer.eof() && (tokenizer >> token) && !clear_comment (&tokenizer, &token, false)) {
+                    cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+                    cout << "syntactic error: EQU directive has too many arguments" << endl;
+                    while (tokenizer >> token);     // ignora o restante da linha
                 }
                 break;
 
             case d_IF:
+
                 // se linha nao acabou, pega proximo token, se token for comentario, pular linha
                 if (!tokenizer.eof() && (tokenizer >> token) && !clear_comment (&tokenizer, &token, false))
                     word.check_token (file_name, token);    // se nao for comentario, analisa token
@@ -618,6 +640,13 @@ void preprocessing (string* file_name) {
                     cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
                     cout << "syntactic error: missing argument in IF statement" << endl;
                     outline.pop_back();
+                }
+
+                // se linha nao acabou, captura proximo token, se token for comentario, pula linha, se nao erro
+                if (!tokenizer.eof() && (tokenizer >> token) && !clear_comment (&tokenizer, &token, false)) {
+                    cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+                    cout << "syntactic error: IF directive has too many arguments" << endl;
+                    while (tokenizer >> token);     // ignora o restante da linha
                 }
                 break;
 
