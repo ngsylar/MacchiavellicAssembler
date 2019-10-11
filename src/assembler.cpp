@@ -73,6 +73,7 @@ class Marker {
     int text_count = 0;
     int data_count = 0;
     bool error = false;
+    bool invalid_type = false;
 
     // retorna 1 caso cursor ja tenha passado por alguma secao valida
     int got_in () {
@@ -206,13 +207,13 @@ class Analyze {
             return 0;
         }
         // se o primeiro caractere for um numero: erro
-        if ((label.front() >= 48) && (label.front() <= 57)) {
+        else if ((label.front() >= 48) && (label.front() <= 57)) {
             cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
             cout << "lexicon error: label \"" << label << "\" starts with a number" << endl;
             return 0;
         }
         // se o rotulo eh maior que 50 caracteres: erro
-        if (label.size() > 50) {
+        else if (label.size() > 50) {
             cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
             cout << "lexicon error: label is longer than 50 characters:" << endl;
             cout << "\t\"" << label << "\"" << endl;
@@ -299,6 +300,7 @@ class Analyze {
                 default:                        // se sucessor for invalido
                     cursor.placement = s_null;  // marcador recebe tipo vazio
                     cursor.error = true;        // sinaliza erro
+                    cursor.invalid_type = true;
                     break;
             }
         } else {                                // se linha acabou
@@ -312,17 +314,21 @@ class Analyze {
 
         // se houver erro em SECTION
         if (cursor.error) {
-            // se cursores ja foram definidos, erro de tentativa de sobrecarregamento de secoes
+            cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+            // se secoes ja foram definidas, erro de tentativa de sobrecarregamento de secoes
             if ( cursor.full() ) {
-                cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
                 cout << "syntactic error: more than two sections" << endl;
                 cursor.error = false;   // limpa erro para proxima avaliacao
-            } // se ha cursor disponivel, tipo de secao esta ausente
-            else {
-                cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+            } // se achou tipo desconhecido, erro de tipo invalido
+            else if (cursor.invalid_type) {
+                cout << "semantic error: " << *token << " is an invalid section type" << endl;
+                cursor.invalid_type = false;
+                cursor.error = false;
+            // se tipo nao foi definido, erro de tipo de secao ausente
+            } else {
                 cout << "syntactic error: missing section type" << endl;
                 cursor.error = false;   // limpa erro para proxima avaliacao
-            } // se nao houver erro, verificar se ha sobrecarregamento
+            } // se nao houver erro, verificar se tipo ja foi declarado anteriormente
         } else if ( cursor.overflowed(*token) ) {
             cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
             cout << "syntactic error: " << *token << " section already exists" << endl;
@@ -564,7 +570,7 @@ void preprocessing (string* file_name) {
                     outline.pop_back();
                 }
 
-                // se linha nao acabou, captura proximo token, se token for comentario, pula linha, se nao erro
+                // se linha nao acabou, pega proximo token, se token for comentario, pula linha, se nao erro
                 if (!tokenizer.eof() && (tokenizer >> token) && !clear_comment (&tokenizer, &token, false)) {
                     cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
                     cout << "syntactic error: IF directive has too many arguments" << endl;
