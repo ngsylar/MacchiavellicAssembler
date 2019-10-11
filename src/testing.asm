@@ -1,14 +1,14 @@
-__meyav: blobsky: EQU 3
+__meyav: blobsky: EQU 3 ; dsjnds
 XIS: EQU 0x1010         0x1010
 SECTION           ; blah
-TRIANGULO: EQU 0xg10
-BOLA:        ;comentario legal legalzao incrivel
+TRIANGULO: EQU 0xg1ho0
+BOLA:        ; comentario legal legalzao incrivel
 
 
 EQU       4
 EQU 300
-1BRASil: EQU
-SECTION TEXT
+1BRASil: EQU    ; belezitos
+SECTION TEXT HYPE
 INPUT OLD_DATA
 LOAD OLD_DATA
 L1: DIV DOIS
@@ -20,8 +20,10 @@ QUADRADO: EQU -3
 EQU 2
 STORE TMP_DATA
 LOAD OLD_DATA
+IF         ; jhbd
 SUB TMP_DATA
 STORE TMP_DATA ;pedro
+IF BOLA ; fsv
 OUTPUT TMP_DATA
 COPY NEW_DATA,OLD_DATA
 LOAD OLD_DATA               ; esse  arquivo eh propositalmente cheio de erros
@@ -53,3 +55,5 @@ cag%$o: const 3
 OLAZINHO
 g00ai: const 2
 substitoar: BOLA
+OMEN: equ equ 5
+right: equ 6 ; cdscs

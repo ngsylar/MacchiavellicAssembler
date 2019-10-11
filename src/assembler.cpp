@@ -227,11 +227,11 @@ class Analyze {
     }
 
     // analise: verifica a validade de uma constante
-    void check_const (string* file_name, string token) {
+    int check_const (string* file_name, string token) {
         string aux;
 
         // se numero for negativo, guardar sinal
-        if (token.front() == '-') {
+        if (token[0] == '-') {
             token.erase (0,1);
             aux.append("-");
         }
@@ -244,7 +244,8 @@ class Analyze {
                 // se numero nao contem apenas digitos numericos e caracteres de A a F, erro
                 if (!((token[i] >= 48) && (token[i] <= 57)) && !((token[i] >= 41) && (token[i] <= 46))) {
                     cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-                    cout << "syntactic error: constant \"" << aux << "\" consisting of invalid characters" << endl;
+                    cout << "lexicon error: constant \"" << aux << "\" consisting of invalid characters" << endl;
+                    return 0;
                 }
             }
         } else {
@@ -254,9 +255,27 @@ class Analyze {
                 // se numeo nao contem apenas digitos numericos, erro
                 if (!((token[i] >= 48) && (token[i] <= 57))) {
                     cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-                    cout << "syntactic error: constant \"" << aux << "\" consisting of invalid characters" << endl;
+                    cout << "lexicon error: constant \"" << aux << "\" consisting of invalid characters" << endl;
+                    return 0;
                 }
             }
+        } // se nenhum erro foi encontrado, retorna 1
+        return 1;
+    }
+
+    // analise: define se token deve ser tradado como 
+    void check_token (string* file_name, string token) {
+        int valid_const;
+
+        if ((token[0] == '-') || ((token[0] >= 48) && (token[0] <= 57))) {  // se token for numero
+            valid_const = check_const (file_name, token);                   // verifica validade da constante
+            if (valid_const) outline.push_back (token);                     // se for valida, insere na linha de saida
+        } else if (ident_table.search (token)) {                            // se for identificador, procura na tabela
+            outline.push_back (ident_table.value);                          // se achou, insere valor na linha de saida
+        } else {                                                            // se nao achou, erro
+            cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+            cout << "semantic error: label \"" << token << "\" has not been declared" << endl;
+            outline.pop_back();                                             // remove IF da linha de saida
         }
     }
     // analise: localiza secao atual e incrementa sua contagem
@@ -405,18 +424,21 @@ void write_preprocessed_file (ofstream* pre_file) {
 }
 
 // funcao auxiliar de pre-processamento: remove comentarios
-void clear_comment (istringstream* tokenizer, string* token) {
+int clear_comment (istringstream* tokenizer, string* token, bool inside_outline) {
     if (token->front() == ';') {
-        outline.pop_back();             // remove comentario da linha de saida
+        if (inside_outline)             // se comentario foi inserido na linha de saida
+            outline.pop_back();         // remove comentario da linha de saida
         while (*tokenizer >> *token);   // pula para proxima linha do codigo fonte
+        return 1;
         // nota: aqui o endereco nao pode contar
     }
+    return 0;
 }
 
 // funcao auxiliar de pre-processamento: remove diretiva EQU da linha de saida
 void clear_EQU_line (istringstream* tokenizer, string* token, bool ident_empty) {
     if (!ident_empty) {                                         // se existe identificador
-        outline.pop_back();                                     // remove EQU e constante da linha de saida
+        outline.pop_back();                                     // remove EQU da linha de saida
         while (outline.back() == newline) outline.pop_back();   // remove quebras de linha acima, se existirem
         outline.pop_back();                                     // remove identificador
     } else {                                // se identificador estiver vazio
@@ -447,7 +469,7 @@ void preprocessing (string* file_name) {
             token.pop_back();                                       // descarta ':'
             word.insert(token);                                     // forca inicializacao de word.content()
             word.multiple_labels (file_name, &tokenizer, &token);   // verifica se ha mais de um identificador na mesma linha
-            clear_comment (&tokenizer, &token);                     // limpa comentario, se existir, apos identificador
+            clear_comment (&tokenizer, &token, true);               // limpa comentario, se existir, apos identificador
             if ( tokenizer.eof() ) {                                // se houver quebra de linha apos identificador
                 token_aux = word.content();                         // guarda identificador em token_aux
             }
@@ -466,61 +488,56 @@ void preprocessing (string* file_name) {
                 if ( cursor.got_in() ) {
                     cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
                     cout << "semantic error: EQU directive after section declaration" << endl;
-                    cursor.error = true;    // sinaliza erro, para impressao de apenas uma mensagem de erro
                 }
 
                 // se identificador nao estiver vazio, inserir numa tabela relacionando-o com seu sinonimo
                 if ( !word.empty() ) {
                     word.check_label (file_name, token);                // analisa validade do identificador
-                    if (!tokenizer.eof() && (tokenizer >> token)) {     // se linha nao acabou, pega a constante
+                    // se linha nao acabou, pega a constante se token nao for comentario
+                    if (!tokenizer.eof() && (tokenizer >> token) && !clear_comment (&tokenizer, &token, false)) {
                         word.check_const (file_name, token);            // analisa validade da constante
-                        
-                        // se identificador ja estava na tabela, erro
-                        if (cursor.error && ident_table.search( word.content() )) {
+                        if (ident_table.search (word.content()) ) {     // se identificador ja estava na tabela, erro
                             cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-                            cout << "semantic error: \"" << word.content() << "\" identifier has already been declared" << endl;
-                            cursor.error = true;
-                        } else  // se identificador nao esta na tabela, insere identificador na tabela
-                            ident_table.insert (word.content(), token);
-                    }
-                    else { // se linha acabou, erro
+                            cout << "semantic error: label \"" << word.content() << "\" has already been declared" << endl;
+                        } else                                          // se identificador nao esta na tabela
+                            ident_table.insert (word.content(), token); // insere identificador na tabela
+                    } else {                                            // se linha acabou, erro
                         cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
                         cout << "syntactic error: missing constant in EQU statement" << endl;
-                        cursor.error = true;
                     }
-                    // remove diretiva EQU da linha de saida e limpa identificador para proxima linha
-                    clear_EQU_line (&tokenizer, &token, word.empty());
-                    word.clear();
+                    clear_EQU_line (&tokenizer, &token, word.empty());  // remove diretiva EQU da linha de saida
+                    word.clear();                                       // limpa identificador para proxima linha
                 }
 
                 // se identificador estiver vazio, erro na diretiva EQU
-                else if ( !cursor.error ) {
+                else {
                     cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
                     cout << "syntactic error: label for the EQU directive does not exist" << endl;
                     clear_EQU_line (&tokenizer, &token, word.empty());  // remove diretiva EQU da linha de saida
-                    cursor.error = true;                                // sinaliza erro, para impressao de apenas uma mensagem de erro
-                } else {                                                // se identificador estiver vazio, mas mensagem de erro ja foi imprimida
-                    clear_EQU_line (&tokenizer, &token, word.empty());  // entao apenas apagar linha
                 }
 
-                // se nao houve mensagem de erro anterior, se linha nao acabou e se tokenizer capturar outro token, erro
-                if (!cursor.error && !tokenizer.eof() && (tokenizer >> token)) {
+                // se linha nao acabou, captura proximo token, se token for comentario, pula linha, se nao erro
+                if (!tokenizer.eof() && (tokenizer >> token) && !clear_comment (&tokenizer, &token, false)) {
                     cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
                     cout << "syntactic error: EQU directive has too many arguments" << endl;
                     while (tokenizer >> token);     // ignora o restante da linha
-                } else {                    // se houve mensagem de erro anterior
-                    cursor.error = false;   // limpa erro para proxima avaliacao
                 }
-
                 break;
 
             case d_IF:
-                // cout << token << endl;
+                // se linha nao acabou, pega proximo token, se token for comentario, pular linha
+                if (!tokenizer.eof() && (tokenizer >> token) && !clear_comment (&tokenizer, &token, false))
+                    word.check_token (file_name, token);    // se nao for comentario, analisa token
+                else {                                      // se nao ha identificador ou constante, erro
+                    cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+                    cout << "syntactic error: missing argument in IF statement" << endl;
+                    outline.pop_back();
+                }
                 break;
 
             default:
                 // se token for comentario, pular para proxima linha
-                clear_comment (&tokenizer, &token);
+                clear_comment (&tokenizer, &token, true);
                 break;
         }
     }
