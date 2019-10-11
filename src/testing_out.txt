@@ -1,0 +1,106 @@
+Line 4 of [testing.asm]:
+syntactic error: more than one label on the same line
+
+Line 5 of [testing.asm]:
+syntactic error: EQU directive has too many arguments
+
+Line 7 of [testing.asm]:
+lexicon error: constant "0xG1HO0" consisting of invalid characters
+
+Line 12 of [testing.asm]:
+syntactic error: label for the EQU directive does not exist
+
+Line 13 of [testing.asm]:
+lexicon error: label "1BRASIL" starts with a number
+
+Line 22 of [testing.asm]:
+semantic error: EQU directive after section declaration
+
+Line 23 of [testing.asm]:
+semantic error: EQU directive after section declaration
+
+Line 23 of [testing.asm]:
+syntactic error: label for the EQU directive does not exist
+
+Line 26 of [testing.asm]:
+syntactic error: missing argument in IF statement
+
+Line 41 of [testing.asm]:
+syntactic error: IF directive has too many arguments
+
+Line 48 of [testing.asm]:
+semantic error: EQU directive after section declaration
+
+Line 56 of [testing.asm]:
+semantic error: EQU directive after section declaration
+
+Line 56 of [testing.asm]:
+semantic error: label "OLAZINHO" has already been declared
+
+Line 62 of [testing.asm]:
+semantic error: EQU directive after section declaration
+
+Line 62 of [testing.asm]:
+lexicon error: constant "EQU" consisting of invalid characters
+
+Line 62 of [testing.asm]:
+syntactic error: EQU directive has too many arguments
+
+Line 63 of [testing.asm]:
+semantic error: EQU directive after section declaration
+
+Line 64 of [testing.asm]:
+semantic error: EQU directive after section declaration
+
+Line 64 of [testing.asm]:
+semantic error: invalid label, "ADD" is a keyword
+
+Line 66 of [testing.asm]:
+syntactic error: IF directive has too many arguments
+
+Line 69 of [testing.asm]:
+semantic error: label "ADD" has not been declared
+
+__MEYAV: BLOBSKY: 
+SECTION 
+SECTION TEXT HYPE 
+INPUT OLD_DATA 
+LOAD OLD_DATA 
+L1: DIV DOIS 
+STORE NEW_DATA 
+SECTION TEXT 
+MULT DOIS 
+0XG1HO0 
+STORE TMP_DATA 
+LOAD OLD_DATA 
+SUB TMP_DATA 
+STORE TMP_DATA 
+COPY NEW_DATA,OLD_DATA 
+LOAD OLD_DATA 
+JMPP L1 
+0X1010 
+STOP 
+SECTION DATA 
+DOIS: CONST 2 
+OLD_DATA: SPACE 
+NEW_DATA: SPACE 
+SECTION SECTION 
+SECTION TEXT 
+SECTION DATA 
+9JOY: CONST 3 
+G4Y: SPACE 
+UMTESTEBACANABEMBANANAPARATESTARSEISSOFUNCIONACARAU: SPACE 
+CAG@$O: SPACE 
+47 
+MEY_AV: SPACE 
+M4RIA: 4 
+_MEY_AV: SPACE 
+MEYAV_: SPACE 
+CAG%$O: CONST 3 
+47 
+G00AI: CONST 2 
+SUBSTITOAR: 4 
+ADD 
+0X1010 
+0XG1HO0 
+4 
