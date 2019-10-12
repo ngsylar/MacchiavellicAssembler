@@ -366,6 +366,11 @@ void onepass (string* file_name) {
     Analyze label;
     int tinhalabelanterior = 0;
     int definicao, i, endaux, achou;
+    vector<int> depoispass; //vetorzao para guardar todos os opcodes
+    int auxcont=-1;
+    int qtdd;
+
+    
 
     // line_number++;
 
@@ -394,45 +399,92 @@ void onepass (string* file_name) {
 
         switch ( OPCODE[token] ) {
             case ADD:       // cout << token << endl;
+            				depoispass.push_back(1);
+            				auxcont++;
                             break;
             case SUB:       // cout << token << endl;
+            				depoispass.push_back(2);
+            				auxcont++;
                             break;
             case MULT:      // cout << token << endl;
+            				depoispass.push_back(3);
+            				auxcont++;
                             break;
             case DIV:       // cout << token << endl;
+            				depoispass.push_back(4);
+            				auxcont++;
                             break;
             case JMP:       // cout << token << endl;
+            				depoispass.push_back(5);
+            				auxcont++;
                             break;
             case JMPN:      // cout << token << endl;
+            				depoispass.push_back(6);
+            				auxcont++;
                             break;
             case JMPP:      // cout << token << endl;
+            				depoispass.push_back(7);
+            				auxcont++;
                             break;
             case JMPZ:      // cout << token << endl;
+            				depoispass.push_back(8);
+            				auxcont++;
                             break;
             case COPY:      // cout << token << endl;
+            				depoispass.push_back(9);
+            				auxcont++;
                             break;
             case LOAD:      // cout << token << endl;
+            				depoispass.push_back(10);
+            				auxcont++;
                             break;
             case STORE:     // cout << token << endl;
+            				depoispass.push_back(11);
+            				auxcont++;
                             break;
             case INPUT:     // cout << token << endl;
+            				depoispass.push_back(12);
+            				auxcont++;
                             break;
             case OUTPUT:    // cout << token << endl;
+            				depoispass.push_back(13);
+            				auxcont++;
                             break;
             case STOP:      // cout << token << endl;
+            				depoispass.push_back(14);
+            				auxcont++;
+                            break;
+            case d_SPACE:     // cout << token << endl;
+            				//tokenizer>>token; testa se tem um numero depois do space
+            				if (//for numero){
+            					qtdd = atoi(token);
+            					auxcont = auxcont + qtdd;
+            				}
+            				else{
+            					auxcont++;
+            				}
+                            break;
+            				
+            case d_CONST:      // cout << token << endl;
+            				auxcont++;
                             break;
             default:
+            	// se token for rotulo
                 tinhalabelanterior = 1;
                 definicao = 0;
-                // se token for rotulo
+                auxcont++; //leu um rotulo, conta um endereço
+                
                 if ( token.back() == ':' ) {
+                	auxcont--; //se for definiçao, nao aumenta o endereco, entao volta
+
                     definicao = 1;       //se tiver : eh definicao
                     // cout << address << ' ' << token << endl;
                     token.pop_back();
                     static Analyze label;
                     label.multiple_labels (file_name, &tokenizer, &token);
                     label.check_label (file_name, token);
-                    address++; // precisa ajustar para space
+                                        
+                   //	address++; // precisa ajustar para space
                 }
                 break;
 
@@ -450,18 +502,19 @@ void onepass (string* file_name) {
                                 while(!tabelasimbolos[i].lista.empty()) {
                                     endaux = tabelasimbolos[i].lista.front(); // auxiliar recebe a frente da fila
                                     tabelasimbolos[i].lista.pop(); //retira a frente
-                                    // vai na saida e coloca nesse endereco o valor correto
+                                    depoispass[endaux] = auxcont+1; // vai na saida e coloca nesse endereco o valor correto
                                 }
-                                tabelasimbolos[i].valor = //o endereço certo;
+                                tabelasimbolos[i].valor = auxcont+1; //o endereço certo;
                                 tabelasimbolos[i].definido = true; //agora esta definido
                             }
                             if(definicao==0){
-                                tabelasimbolos[i].lista.push(address); //endereco
+                                tabelasimbolos[i].lista.push(auxcont); //endereco
+                                depoispass.push_back(-1);
                             }
                         }
 
                         if(tabelasimbolos[i].definido == true) { //se ja estava definido
-                            //o endereco pro arquivo saida - se esse simbolo encontrado ja for a definicao, coloca esse endereco no arquivo de saida
+                            depoispass[contaux] = tabelasimbolos[i].valor; //se esse simbolo encontrado ja for a definicao, coloca esse endereco no arquivo de saida
                         }
 
 
@@ -475,11 +528,12 @@ void onepass (string* file_name) {
 
 
                     if (definicao==1){          //se tiver :, eh definicao
-                        auxiliar.valor = //o endereco;
+                        auxiliar.valor = auxcont+1; //se for definiçao, nao aumenta o endereco, mas o valor daquela label, eh o da proxima instrucao
                         auxiliar.definido = true;
                     }
                     if(definicao==0){           //se nao tiver :, eh uso
-                        auxiliar.lista.push(address); //o endereco); - endereco
+                        auxiliar.lista.push(auxcont); //o endereco
+                        depoispass.push_back(-1);
                         auxiliar.definido = false;
                     }
 
@@ -490,6 +544,13 @@ void onepass (string* file_name) {
     }
     //pesquisar onde
 }
+
+
+
+
+
+
+
 
 // ----------------------------------------------------------------------------------------------------
 //    PRE-PROCESSAMENTO
