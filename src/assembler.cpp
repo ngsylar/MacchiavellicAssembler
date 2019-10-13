@@ -219,32 +219,35 @@ class Analyze {
         }
         string label = aux;     // label recebe auxiliar
 
-        // se label for igual a uma palavra reservada
+        // se label for igual a uma palavra reservada, erro
         if (((OPCODE[label] >= 1) && (OPCODE[label] <= 14)) || ((DIRECTIVE[label] >= 1) && (DIRECTIVE[label] <= 5)) || ((SECTION[label] >= 1) && (SECTION[label] <= 2))) {
             cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
             cout << "semantic error: invalid label, \"" << label << "\" is a keyword" << endl;
             return 0;
-        }
-        // se o primeiro caractere for um numero: erro
-        else if ((label.front() >= 48) && (label.front() <= 57)) {
-            cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-            cout << "lexicon error: label \"" << label << "\" starts with a number" << endl;
-            return 0;
-        }
-        // se o rotulo eh maior que 50 caracteres: erro
-        else if (label.size() > 50) {
-            cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-            cout << "lexicon error: label is longer than 50 characters:" << endl;
-            cout << "\t\"" << label << "\"" << endl;
-            return 0;
-        }
-        // se o rotulo nao eh composto apenas por letras, numeros e underscore: erro
-        for (unsigned int i = 0; i < label.size(); i++) {
-            if ((label[i] != 95) && (!((label[i] >= 48) && (label[i] <= 57)) && !((label[i] >= 65) && (label[i] <= 90)))) {
+        } else {
+            // se o rotulo eh maior que 50 caracteres: erro
+            if (label.size() > 50) {
                 cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-                cout << "lexicon error: label \"" << label << "\" is not just letters, numbers or underscore" << endl;
+                cout << "lexicon error: label is longer than 50 characters:" << endl;
+                while (outline.back().size() > 50) {
+                    outline.back().pop_back();
+                } label = outline.back();
+                cout << "\t\"" << label << "\"" << endl;
                 return 0;
             }
+            // se o primeiro caractere for um numero: erro
+            if ((label.front() >= 48) && (label.front() <= 57)) {
+                cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+                cout << "lexicon error: label \"" << label << "\" starts with a number" << endl;
+                return 0;
+            }
+            // se o rotulo nao eh composto apenas por letras, numeros e underscore: erro
+            for (unsigned int i = 0; i < label.size(); i++)
+                if ((label[i] != 95) && (!((label[i] >= 48) && (label[i] <= 57)) && !((label[i] >= 65) && (label[i] <= 90)))) {
+                    cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+                    cout << "lexicon error: label \"" << label << "\" is not just letters, numbers or underscore" << endl;
+                    return 0;
+                }
         }
         if (init) aux.clear();  // se auxiliar foi inicializado dentro da funcao, limpar auxiliar
         return 1;               // se nenhum erro foi encontrado, retorna 1
@@ -545,19 +548,57 @@ void onepass (string* file_name) {
     //pesquisar onde
 }
 
-
-
-
-
-
-
-
 // ----------------------------------------------------------------------------------------------------
 //    PRE-PROCESSAMENTO
 // ----------------------------------------------------------------------------------------------------
 
-// funcao auxiliar de pre-processamento: escreve codigo pre-processado
+// funcao auxiliar de pre-processamento: move SECTION DATA para baixo de SECTION TEXT
+int change_places (ofstream* pre_file, unsigned int i, bool* text_sign, bool* data_sign) {
+
+    // recebe palavra SECTION e se linha de saida nao acabou, pega proxima palavra
+    if ((i+1) != outline.size()) i++;
+    while (i < outline.size()) {
+        if (!(*text_sign) || !(*data_sign)) {       // se falta escrever algum tipo de secao
+            switch ( DIRECTIVE[ outline[i-1] ] ) {  // se palavra anterior for SECTION
+                case d_SECTION:
+                    switch ( SECTION[ outline[i] ] ) {
+
+                        case s_DATA:                        // se palavra atual for DATA
+                            outline[i] = "SECTION DATA";    // palavra atual recebe SECTION DATA
+                            *data_sign = true;              // sinaliza ja escreveu SECTION DATA
+                            break;                          // vai para a condicao final
+
+                        case s_TEXT:                        // se palavra atual for TEXT
+                            if (data_sign)                  // se moveu SECTION DATA para o final
+                                outline.pop_back();         // apaga palavra SECTION do final
+                            i--;                            // retorna para palavra SECTION
+                            *pre_file << outline[i] << " "; // escreve SECTION no arquivo de saida
+                            *text_sign = true;              // sinaliza ja escreveu SECTION TEXT
+                            return i;                       // retorna indice de continuacao de escrita
+
+                        default:                                    // para qualquer outra palavra atual
+                            if (!(*data_sign)) {                    // se ainda nao escreveu SECTION DATA
+                                *pre_file << outline[i-1] << " ";   // escreve SECTION no arquivo de saida
+                                return i;                           // retorna indice de continuacao
+                            } else                                  // se escreveu SECTION DATA
+                                break;                              // vai para condicao final
+                    }
+                default: break;
+            }
+        }
+        if (*data_sign)                         // se estiver em DATA, mas ainda nao achou TEXT
+            outline.push_back ( outline[i] );   // move palavra atual para o final da linha de saida
+        i++;
+    }
+    return i;
+}
+
+// pre-processamento: escreve codigo pre-processado
 void write_preprocessed_file (ofstream* pre_file) {
+    cursor.clear();             // limpa o cursor para a passagem unica
+    bool text_sign = false;     // sinaliza se escreveu SECTION TEXT
+    bool data_sign = false;     // sinaliza se escreveu SECTION DATA
+
     // enquanto linha de saida nao acabou
     for (unsigned int i=0; i < outline.size(); i++) {
 
@@ -569,13 +610,22 @@ void write_preprocessed_file (ofstream* pre_file) {
         }
 
         // se palavra for rotulo, escreve no arquivo de saida e pula para proxima palavra
-        if (outline[i].back() == ':') {
+        while (outline[i].back() == ':') {
             *pre_file << outline[i] << " ";
             if ((i+1) != outline.size())
                 do { i++; } while (((i+1) != outline.size()) && (outline[i] == newline));
+            else break;
         }
 
         switch ( DIRECTIVE[ outline[i] ] ) {
+
+            case d_SECTION:         // se palavra for diretiva SECTION
+                if (!text_sign)     // se ainda nao escreveu SECTION TEXT, verificar tipo da secao
+                    i = change_places(pre_file, i, &text_sign, &data_sign);
+                else                // se escreveu SECTION TEXT, escreve SECTION no arquivo de saida
+                    *pre_file << outline[i] << " ";
+                break;
+
             case d_IF:                              // se palavra for diretiva IF
                 if ((i+1) != outline.size()) i++;   // pula para proxima palavra
                 if (outline[i] != "1") {            // se palavra for diferente de '1'
@@ -589,7 +639,7 @@ void write_preprocessed_file (ofstream* pre_file) {
                 }
                 break;
 
-            default:                                        // se palavra nao for diretiva
+            default:                                        // se palavra nao for diretiva IF
                 if ( ident_table.search (outline[i]) )      // procura palavra na tabela de identificadores
                     *pre_file << ident_table.value << " ";  // se achou, escreve valor no arquivo de saida
                 else                                        // se nao achou
@@ -608,7 +658,6 @@ int clear_comment (istringstream* tokenizer, string* token, bool inside_outline)
             outline.pop_back();         // remove comentario da linha de saida
         while (*tokenizer >> *token);   // pula para proxima linha do codigo fonte
         return 1;
-        // nota: aqui o endereco nao pode contar
     }
     return 0;
 }
@@ -668,7 +717,7 @@ void preprocessing (string* file_name) {
                     cout << "semantic error: EQU directive after section declaration" << endl;
                 }
 
-                // se identificador nao estiver vazio, inserir numa tabela relacionando-o com seu sinonimo
+                // se identificador nao estiver vazio e nao for repetido, inserir numa tabela relacionando-o com seu sinonimo
                 if ( !word.empty() ) {
                     if (word.check_label (file_name, token)) {          // analisa validade do identificador
                         // se linha nao acabou, pega a constante se token nao for comentario
@@ -739,7 +788,7 @@ int main () {
     stringSwitch();     // inicializa palavras reservadas
 
     // abre arquivo contendo o codigo fonte
-    string file_name = "testing.asm"; // nota: essa string depois vai ser o argumento iniciado junto ao programa na linha de comando
+    string file_name = "testing2.asm"; // nota: essa string depois vai ser o argumento iniciado junto ao programa na linha de comando
     ifstream file (file_name);
 
     // cria um arquivo contendo o codigo pre-processado
@@ -755,14 +804,12 @@ int main () {
             preprocessing (&file_name);             // realiza o pre-processamento
             // onepass (&file_name); // vai precisar entrar em outro laco fora deste, usando como arquivo fonte o codigo pre processado
             // cout << line << endl;
-        } // nota: limpar o Marker
+        }
         file.close();
+        write_preprocessed_file (&pre_file);
+        pre_file.close();
     }
     else cout << endl << "ERROR: File not found!";
 
-    write_preprocessed_file (&pre_file);
-    pre_file.close();
-
-    // cout << line_number << endl;
     return 0;
 }
