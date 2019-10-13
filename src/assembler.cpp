@@ -674,7 +674,7 @@ void clear_EQU_line (istringstream* tokenizer, string* token, bool ident_empty) 
     }
 }
 
-// pre-processamento
+// pre-processamento: funcao principal
 void preprocessing (string* file_name) {
     Analyze word;                   // token a ser analisado
     istringstream tokenizer {line}; // decompositor de linha
@@ -795,7 +795,6 @@ int main () {
     string out_name = file_name;
     for (int i=0; i<3; i++) out_name.pop_back();
     out_name.append("pre");
-    ofstream pre_file (out_name);
 
     if ( file.is_open() ) {
         while ( !file.eof() ) {
@@ -806,10 +805,12 @@ int main () {
             // cout << line << endl;
         }
         file.close();
+        
+        ofstream pre_file (out_name);
         write_preprocessed_file (&pre_file);
         pre_file.close();
     }
-    else cout << endl << "ERROR: File not found!";
+    else cout << endl << "ERROR: File not found!" << endl;
 
     return 0;
 }
