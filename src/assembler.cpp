@@ -1,3 +1,5 @@
+
+  
 // ----------------------------------------------------------------------------------------------------
 //    BIBLIOTECAS
 // ----------------------------------------------------------------------------------------------------
@@ -362,15 +364,17 @@ class Analyze {
 //    SINTESE DE CODIGO
 // ----------------------------------------------------------------------------------------------------
 
+    vector<int> depoispass; //vetorzao para guardar todos os opcodes
+    int auxcont=-1;
+
 // passagem unica
 void onepass (string* file_name) {
     istringstream tokenizer {line};
     string token;
-    Analyze label;
+    Analyze label, word;
     int tinhalabelanterior = 0;
     int definicao, i, endaux, achou;
-    vector<int> depoispass; //vetorzao para guardar todos os opcodes
-    int auxcont=-1;
+    
     int qtdd;
 
     
@@ -457,21 +461,43 @@ void onepass (string* file_name) {
             				depoispass.push_back(14);
             				auxcont++;
                             break;
-            case d_SPACE:     // cout << token << endl;
-            				//tokenizer>>token; testa se tem um numero depois do space
-            				if (//for numero){
-            					qtdd = atoi(token);
-            					auxcont = auxcont + qtdd;
-            				}
+            
+            default:
+                
+                switch(DIRECTIVE[token]){
+                    case d_SPACE:     // cout << token << endl;
+                            if (tokenizer.eof() && tokenizer>>token) {
+            				    // token guarda numero
+                                if word.check_const(file_name, token) {
+                                    qtdd = atoi(token);
+                                    auxcont = auxcont + qtdd;
+                                    for(//roda tudo o vetor criado pelo space){
+                                        depoispass.push_back(0);
+                                    }
+                                }
+                            }
             				else{
             					auxcont++;
             				}
                             break;
             				
-            case d_CONST:      // cout << token << endl;
+                    case d_CONST:   
+                            if (tokenizer.eof() && tokenizer>>token) {
+            				    // token guarda numero
+                                if word.check_const(file_name, token) {
+                                    qtdd = atoi(token);
+                                    auxcont = auxcont + qtdd;
+                                    for(//roda tudo o vetor criado pelo space){
+                                        depoispass.push_back(0);
+                                    }
+                                }
+                            }// cout << token << endl;
             				auxcont++;
                             break;
-            default:
+                    default:
+                            
+                
+                
             	// se token for rotulo
                 tinhalabelanterior = 1;
                 definicao = 0;
@@ -492,7 +518,7 @@ void onepass (string* file_name) {
                 break;
 
 
-                // nao tenho certeza, mas acho q vem aqui
+                
                 achou=0;
 
                 for(i=0; i<tabelasimbolos.size(); i++){    // vai varrer o vector da tabela de simbolos buscando o token (nao eh endereco ou instrucao)
@@ -780,6 +806,15 @@ void preprocessing (string* file_name) {
     outline.push_back (newline);    // insere quebra de linha na linha de saida
 }
 
+
+void escrevepos(ofstream* obj_file){
+    int i;
+    for(i=0; i<depoispass.size(); i++){
+        obj_file << depoispass[i] << ' ';
+    }
+}
+
+
 // ----------------------------------------------------------------------------------------------------
 //    MONTADOR
 // ----------------------------------------------------------------------------------------------------
@@ -794,7 +829,9 @@ int main () {
     // cria um arquivo contendo o codigo pre-processado
     string out_name = file_name;
     for (int i=0; i<3; i++) out_name.pop_back();
+    string obj_name = out_name;
     out_name.append("pre");
+    obj_name.append("obj");
 
     if ( file.is_open() ) {
         while ( !file.eof() ) {
@@ -806,11 +843,24 @@ int main () {
         }
         file.close();
         
-        ofstream pre_file (out_name);
+        fstream pre_file (out_name);
         write_preprocessed_file (&pre_file);
         pre_file.close();
+        pre_file.open();
+        while ( !pre_file.eof() ) {
+            getline (pre_file, line);
+            onepass (&out_name);
+        }
+        pre_file.close();
+        
+        ofstream obj_file (obj_name);
+        obj_file.open();
+        escrevepos(obj_file);
+        obj_file.close();
+        // escreve o arq objeto
     }
     else cout << endl << "ERROR: File not found!" << endl;
 
     return 0;
 }
+
