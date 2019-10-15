@@ -143,16 +143,14 @@ int main (int argc, char *argv[]) {
     ifstream file (file_name);
     int current;
 
-    // le todo o arquivo .obj
+    // executa o codigo
     if ( file.is_open() ) {
         while (file >> current)
             MEM.push_back(current);
         file.close();
+        run();
     } else
         std::cout << endl << "ERROR! File not found." << endl;
-
-    // executa o codigo
-    run();
 
     return 0;
 }
