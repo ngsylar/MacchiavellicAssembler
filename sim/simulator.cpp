@@ -2,112 +2,144 @@
 //    BIBLIOTECAS
 // ----------------------------------------------------------------------------------------------------
 
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <vector>
+#include <iostream>     // entrada e saida
+#include <fstream>      // leitura e escrita de arquivos
+#include <vector>       // vetores
 using namespace std;
 
 // ----------------------------------------------------------------------------------------------------
 //    MEMORIA
 // ----------------------------------------------------------------------------------------------------
 
-enum e_OPCODE {ADD=1, SUB, MULT, DIV, JMP, JMPN, JMPP, JMPZ, COPY, LOAD, STORE, INPUT, OUTPUT, STOP};
-vector<int> MEM;
-int ACC = 0;
-int PC;
+enum OPCODE {ADD=1, SUB, MULT, DIV, JMP, JMPN, JMPP, JMPZ, COPY, LOAD, STORE, INPUT, OUTPUT, STOP};
+vector<int> MEM;    // lista de instrucoes do programa em execucao
+int ACC = 0;        // registrador unico: acumulador
+int PC;             // contador de programa
 
 // ----------------------------------------------------------------------------------------------------
 //    SIMULADOR
 // ----------------------------------------------------------------------------------------------------
 
-void run () {
-    int op1, op2, in;
+// valida numero inteiro inserido pelo usuario
+void insert (int* IN) {
+    string INAUX;
 
+    std::cin >> INAUX;
+    while (!((INAUX.front() >= 48) && (INAUX.front() <= 57))) {
+        std::cout << "ERRO! Insira um inteiro valido: ";
+        std::cin >> INAUX;
+    }
+    *IN = stoi(INAUX);
+}
+
+// executa o programa
+void run () {
+    int OP1, OP2, IN;   // variaveis auxiliares: operandos e valor de entrada
+
+    // enquanto programa nao acabou, pega instrucao
     for (PC=0; PC < MEM.size(); PC++) {
         switch ( MEM[PC] ) {
-            case ADD:
-                std::cout << "ADD " << MEM[PC+1] << "\t";
-                ACC = ACC + MEM[ MEM[++PC] ];
-                std::cout << "ACC = " << ACC << endl;
+
+            // operacoes aritmeticas
+            case ADD:                   // se adicao
+                OP1 = MEM[++PC];        // pega valor no endereco de memoria apontado pelo operando
+                ACC = ACC + MEM[ OP1];  // soma conteudo do acumulador com valor e guarda
+                std::cout << "ACC: " << ACC << endl;
                 break;
-            case SUB:
-                std::cout << "SUB " << MEM[PC+1] << "\t";
-                ACC = ACC - MEM[ MEM[++PC] ];
-                std::cout << "ACC = " << ACC << endl;
+            case SUB:                   // se subtracao
+                OP1 = MEM[++PC];        // pega valor no endereco de memoria apontado pelo operando
+                ACC = ACC - MEM[ OP1];  // subtrai valor do conteudo do acumulador e guarda
+                std::cout << "ACC: " << ACC << endl;
                 break;
-            case MULT:
-                std::cout << "MULT " << MEM[PC+1] << "\t";
-                ACC = ACC * MEM[ MEM[++PC] ];
-                std::cout << "ACC = " << ACC << endl;
+            case MULT:                  // se multiplicacao
+                OP1 = MEM[++PC];        // pega valor no endereco de memoria apontado pelo operando
+                ACC = ACC * MEM[ OP1];  // multiplica conteudo do acumulador com valor e guarda
+                std::cout << "ACC: " << ACC << endl;
                 break;
-            case DIV:
-                std::cout << "DIV " << MEM[PC+1] << "\t";
-                ACC = ACC / MEM[ MEM[++PC] ];
-                std::cout << "ACC = " << ACC << endl;
+            case DIV:                   // se divisao
+                OP1 = MEM[++PC];        // pega valor no endereco de memoria apontado pelo operando
+                ACC = ACC / MEM[ OP1];  // divide conteudo do acumulador pelo valor e guarda
+                std::cout << "ACC: " << ACC << endl;
                 break;
-            case JMP:
-                std::cout << "JMP " << MEM[PC+1] << endl;
-                PC = MEM[++PC];
-                std::cout << "PC = " << PC << endl;
-                PC--;
+
+            // saltos
+            case JMP:               // se salto incondicional
+                OP1 = MEM[++PC];    // pega endereco de memoria apontado pelo operando
+                PC = --OP1;         // contador de programa recebe endereco
+                std::cout << "PC: " << PC << endl;
                 break;
-            case JMPN:
-                std::cout << "JMPN " << MEM[PC+1] << endl;
-                if (ACC < 0) {
-                    PC = MEM[++PC];
-                    PC--;
-                } else PC++;
+            case JMPN:              // se salto condicional
+                OP1 = MEM[++PC];    // pega endereco de memoria apontado pelo operando
+                if (ACC < 0) {      // se acumulador for numero negativo
+                    PC = --OP1;     // contador de programa recebe endereco
+                    std::cout << "PC: " << PC << endl;
+                } break;
+            case JMPP:              // se salto condicional
+                OP1 = MEM[++PC];    // pega endereco de memoria apontado pelo operando
+                if (ACC > 0) {      // se acumulador for numero positivo
+                    PC = --OP1;     // contador de programa recebe endereco
+                    std::cout << "PC: " << PC << endl;
+                } break;
+            case JMPZ:              // se salto condicional
+                OP1 = MEM[++PC];    // pega endereco de memoria apontado pelo operando
+                if (ACC == 0) {     // se acumulador for igual a zero
+                    PC = --OP1;     // contador de programa recebe endereco
+                    std::cout << "PC: " << PC << endl;
+                } break;
+
+            // acesso a memoria
+            case COPY:                  // se copia
+                OP1 = MEM[++PC];        // pega valor no endereco de memoria apontado pelo operando1
+                OP2 = MEM[++PC];        // pega endereco de memoria apontado pelo operando2
+                MEM[ OP2] = MEM[ OP1];  // guarda valor no endereco de memoria
+                std::cout << OP2 << ": " << MEM[ OP2] << endl;
                 break;
-            case JMPP:
-                std::cout << "JMPP " << MEM[PC+1] << "\tPC = " << PC << endl;
-                if (ACC > 0) {
-                    PC = MEM[++PC];
-                    std::cout << "PC = " << PC << endl;
-                    PC--;
-                } else PC++;
+            case LOAD:              // se leitura de memoria
+                OP1 = MEM[++PC];    // pega valor no endereco de memoria apontado pelo operando
+                ACC = MEM[ OP1];    // guarda valor no acumulador
+                std::cout << "ACC: " << ACC << endl;
                 break;
-            case JMPZ:
-                std::cout << "JMPZ " << MEM[PC+1] << endl;
-                if (ACC == 0) {
-                    PC = MEM[++PC];
-                    PC--;
-                } else PC++;
+            case STORE:             // se escrita em memoria
+                OP1 = MEM[++PC];    // pega endereco de memoria apontado pelo operando
+                MEM[ OP1] = ACC;    // guarda conteudo do acumulador no endereco de memoria
+                std::cout << OP1 << ": " << MEM[ OP1] << endl;
                 break;
-            case COPY:
-                std::cout << "COPY " << MEM[PC+1] << "," << MEM[PC+2] << endl;
-                op1 = MEM[++PC];
-                op2 = MEM[++PC];
-                MEM[op2] = MEM[op1];
-                break;
-            case LOAD:
-                std::cout << "LOAD " << MEM[PC+1] << "\t";
-                ACC = MEM[ MEM[++PC] ];
-                std::cout << "ACC = " << ACC << endl;
-                break;
-            case STORE:
-                std::cout << "STORE " << MEM[PC+1] << endl;
-                MEM[ MEM[++PC] ] = ACC;
-                break;
-            case INPUT:
+
+            // entrada e saida
+            case INPUT:             // se entrada
+                OP1 = MEM[++PC];    // pega endereco de memoria apontado pelo operando
                 std::cout << "Favor, inserir um valor numerico: ";
-                std::cin >> in;
-                MEM[ MEM[++PC] ] = in;
+                insert(&IN);        // recebe valor inserido pelo usuario
+                MEM[ OP1] = IN;     // guarda valor no endereco de memoria
+                std::cout << OP1 << ": " << MEM[ OP1] << endl;
                 break;
-            case OUTPUT:
-                std::cout << "O valor de saida eh: " << MEM[ MEM[++PC] ] << endl;
+            case OUTPUT:            // se saida
+                OP1 = MEM[++PC];    // mostra valor guardado no endereco apontado pelo operando
+                std::cout << "O valor de saida eh: " << MEM[ OP1] << endl;
                 break;
-            case STOP:
+
+            // fim
+            case STOP:      // se parada
                 std::cout << "Fim do programa." << endl;
-                return;
+                return;     // finaliza programa
             default: break;
         }
     }
 }
 
-int main () {
+// inicio
+int main (int argc, char *argv[]) {
+    
+    // recebe nome de arquivo
+    string file_name;
+    if (argc > 1) {
+        file_name = argv[1];
+    } else {
+        std::cout << "Insira o nome do arquivo: " ;
+        std::cin >> file_name;
+    }
     // abre arquivo contendo o codigo objeto
-    string file_name = "bin.obj"; // nota: essa string depois vai ser o argumento iniciado junto ao programa na linha de comando
+    std::cout << endl << "Inicio do programa" << endl;
     ifstream file (file_name);
     int current;
 
@@ -115,7 +147,9 @@ int main () {
     if ( file.is_open() ) {
         while (file >> current)
             MEM.push_back(current);
-    } file.close();
+        file.close();
+    } else
+        std::cout << endl << "ERRO! Arquivo nao encontrado." << endl;
 
     // executa o codigo
     run();
