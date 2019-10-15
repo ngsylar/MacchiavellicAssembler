@@ -1,4 +1,3 @@
-
   
 // ----------------------------------------------------------------------------------------------------
 //    BIBLIOTECAS
@@ -386,78 +385,61 @@ void onepass (string* file_name) {
         if(tinhalabelanterior == 0){
             tokenizer >> token;
         }
-
-        // cout << token << endl;
-
-        // switch ( DIRECTIVE[token] ) {
-        //     case d_SECTION:
-        //         tokenizer >> token;
-        //         switch ( SECTION[token] ) {
-        //             case s_TEXT: break; // aqui devera vir o switch para opcodes
-        //             case s_DATA: break;
-        //         } break;
-        //     case d_SPACE:   // cout << token << endl;
-        //                     break;
-        //     case d_CONST:   // cout << token << endl;
-        //                     break;
-        //     default:
-        //         break;
-        // }
-
+        
         switch ( OPCODE[token] ) {
-            case ADD:       // cout << token << endl;
+            case ADD:       
             				depoispass.push_back(1);
             				auxcont++;
                             break;
-            case SUB:       // cout << token << endl;
+            case SUB:       
             				depoispass.push_back(2);
             				auxcont++;
                             break;
-            case MULT:      // cout << token << endl;
+            case MULT:      
             				depoispass.push_back(3);
             				auxcont++;
                             break;
-            case DIV:       // cout << token << endl;
+            case DIV:       
             				depoispass.push_back(4);
             				auxcont++;
                             break;
-            case JMP:       // cout << token << endl;
+            case JMP:       
             				depoispass.push_back(5);
             				auxcont++;
                             break;
-            case JMPN:      // cout << token << endl;
+            case JMPN:      
             				depoispass.push_back(6);
             				auxcont++;
                             break;
-            case JMPP:      // cout << token << endl;
+            case JMPP:      
             				depoispass.push_back(7);
             				auxcont++;
                             break;
-            case JMPZ:      // cout << token << endl;
+            case JMPZ:      
             				depoispass.push_back(8);
             				auxcont++;
                             break;
-            case COPY:      // cout << token << endl;
+            case COPY:      
             				depoispass.push_back(9);
             				auxcont++;
                             break;
-            case LOAD:      // cout << token << endl;
+            case LOAD:      
             				depoispass.push_back(10);
             				auxcont++;
                             break;
-            case STORE:     // cout << token << endl;
+            case STORE:     
             				depoispass.push_back(11);
             				auxcont++;
                             break;
-            case INPUT:     // cout << token << endl;
+            case INPUT:     
             				depoispass.push_back(12);
             				auxcont++;
                             break;
-            case OUTPUT:    // cout << token << endl;
+            case OUTPUT:    
             				depoispass.push_back(13);
             				auxcont++;
                             break;
-            case STOP:      // cout << token << endl;
+            case STOP:      
             				depoispass.push_back(14);
             				auxcont++;
                             break;
@@ -465,113 +447,112 @@ void onepass (string* file_name) {
             default:
                 
                 switch(DIRECTIVE[token]){
-                    case d_SPACE:     // cout << token << endl;
-                            if (tokenizer.eof() && tokenizer>>token) {
-            				    // token guarda numero
-                                if word.check_const(file_name, token) {
-                                    qtdd = atoi(token);
-                                    auxcont = auxcont + qtdd;
-                                    for(//roda tudo o vetor criado pelo space){
-                                        depoispass.push_back(0);
-                                    }
-                                }
+                    case d_SPACE:
+							
+                            if (tokenizer.eof() && tokenizer>>token) { 
+            				           if word.check_const(file_name, token) {//token eh um numero
+                                  qtdd = atoi(token);
+                                  for(int j=0; j< qtdd; j++){
+                                  depoispass.push_back(00);
+                                  }
+									                auxcont = auxcont + qtdd;
+                               }
+                               else{
+									                depoispass.push_back(00);
+									                auxcont++;
+								                }
                             }
-            				else{
-            					auxcont++;
-            				}
+            				
                             break;
             				
                     case d_CONST:   
                             if (tokenizer.eof() && tokenizer>>token) {
-            				    // token guarda numero
-                                if word.check_const(file_name, token) {
-                                    qtdd = atoi(token);
-                                    auxcont = auxcont + qtdd;
-                                    for(//roda tudo o vetor criado pelo space){
-                                        depoispass.push_back(0);
-                                    }
+                                if word.check_const(file_name, token) {//token eh um numero
+									                  qtdd = atoi(token)
+                                    depoispass.push_back(qtdd);
+									                  auxcont ++;
                                 }
-                            }// cout << token << endl;
-            				auxcont++;
+                            }
+            				        auxcont++;
                             break;
                     default:
-                            
+                                           
                 
-                
-            	// se token for rotulo
-                tinhalabelanterior = 1;
-                definicao = 0;
-                auxcont++; //leu um rotulo, conta um endereço
-                
-                if ( token.back() == ':' ) {
-                	auxcont--; //se for definiçao, nao aumenta o endereco, entao volta
+							// se token for rotulo
+							tinhalabelanterior = 1;
+							definicao = 0;
+							auxcont++; //leu um rotulo, conta um endereço
+							
+							if ( token.back() == ':' ) {
+								auxcont--; //se for definiçao, nao aumenta o endereco, entao volta
 
-                    definicao = 1;       //se tiver : eh definicao
-                    // cout << address << ' ' << token << endl;
-                    token.pop_back();
-                    static Analyze label;
-                    label.multiple_labels (file_name, &tokenizer, &token);
-                    label.check_label (file_name, token);
-                                        
-                   //	address++; // precisa ajustar para space
+								definicao = 1;       //se tiver : eh definicao
+								// cout << address << ' ' << token << endl;
+								token.pop_back();
+								static Analyze label;
+								label.multiple_labels (file_name, &tokenizer, &token);
+								label.check_label (file_name, token);
+													
+							   //	address++; // precisa ajustar para space
+							}
+							break;
+
+
+                
+							achou=0;
+
+							for(i=0; i<tabelasimbolos.size(); i++){    // vai varrer o vector da tabela de simbolos buscando o token (nao eh endereco ou instrucao)
+
+								if (tabelasimbolos[i].simbolo == label.content()){        //encontrou
+									achou = 1;                                  //flag = ja tem esse simbolo na tabela
+
+									if(tabelasimbolos[i].definido == false){    // se nesse lugar da tabela o a definicao for false, adicionar endereco na fila
+										if(definicao==1){
+											while(!tabelasimbolos[i].lista.empty()) {
+												endaux = tabelasimbolos[i].lista.front(); // auxiliar recebe a frente da fila
+												tabelasimbolos[i].lista.pop(); //retira a frente
+												depoispass[endaux] = auxcont+1; // vai na saida e coloca nesse endereco o valor correto
+											}
+											tabelasimbolos[i].valor = auxcont+1; //o endereço certo;
+											tabelasimbolos[i].definido = true; //agora esta definido
+										}
+										if(definicao==0){
+											tabelasimbolos[i].lista.push(auxcont); //endereco
+											depoispass.push_back(-1);
+										}
+									}
+
+									if(tabelasimbolos[i].definido == true) { //se ja estava definido
+										depoispass[contaux] = tabelasimbolos[i].valor; //se esse simbolo encontrado ja for a definicao, coloca esse endereco no arquivo de saida
+									}
+
+
+									break;
+								}
+
+							}
+
+							if (achou==0){      // se nao achou na tabela, vai colocar na tabela
+								auxiliar.simbolo = label.content(); //simbolo
+
+
+								if (definicao==1){          //se tiver :, eh definicao
+									auxiliar.valor = auxcont+1; //se for definiçao, nao aumenta o endereco, mas o valor daquela label, eh o da proxima instrucao
+									auxiliar.definido = true;
+								}
+								if(definicao==0){           //se nao tiver :, eh uso
+									auxiliar.lista.push(auxcont); //o endereco
+									depoispass.push_back(-1);
+									auxiliar.definido = false;
+								}
+							}
+						tabelasimbolos.push_back(auxiliar);
                 }
-                break;
-
-
-                
-                achou=0;
-
-                for(i=0; i<tabelasimbolos.size(); i++){    // vai varrer o vector da tabela de simbolos buscando o token (nao eh endereco ou instrucao)
-
-                    if (tabelasimbolos[i].simbolo == label.content()){        //encontrou
-                        achou = 1;                                  //flag = ja tem esse simbolo na tabela
-
-                        if(tabelasimbolos[i].definido == false){    // se nesse lugar da tabela o a definicao for false, adicionar endereco na fila
-                            if(definicao==1){
-                                while(!tabelasimbolos[i].lista.empty()) {
-                                    endaux = tabelasimbolos[i].lista.front(); // auxiliar recebe a frente da fila
-                                    tabelasimbolos[i].lista.pop(); //retira a frente
-                                    depoispass[endaux] = auxcont+1; // vai na saida e coloca nesse endereco o valor correto
-                                }
-                                tabelasimbolos[i].valor = auxcont+1; //o endereço certo;
-                                tabelasimbolos[i].definido = true; //agora esta definido
-                            }
-                            if(definicao==0){
-                                tabelasimbolos[i].lista.push(auxcont); //endereco
-                                depoispass.push_back(-1);
-                            }
-                        }
-
-                        if(tabelasimbolos[i].definido == true) { //se ja estava definido
-                            depoispass[contaux] = tabelasimbolos[i].valor; //se esse simbolo encontrado ja for a definicao, coloca esse endereco no arquivo de saida
-                        }
-
-
-                        break;
-                    }
-
-                }
-
-                if (achou==0){      // se nao achou na tabela, vai colocar na tabela
-                    auxiliar.simbolo = label.content(); //simbolo
-
-
-                    if (definicao==1){          //se tiver :, eh definicao
-                        auxiliar.valor = auxcont+1; //se for definiçao, nao aumenta o endereco, mas o valor daquela label, eh o da proxima instrucao
-                        auxiliar.definido = true;
-                    }
-                    if(definicao==0){           //se nao tiver :, eh uso
-                        auxiliar.lista.push(auxcont); //o endereco
-                        depoispass.push_back(-1);
-                        auxiliar.definido = false;
-                    }
-
-                }
-            tabelasimbolos.push_back(auxiliar);
+            
             
         }
     }
-    //pesquisar onde
+    
 }
 
 // ----------------------------------------------------------------------------------------------------
