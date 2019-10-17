@@ -5,7 +5,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
-#include <string>
+#include <cstring>
 #include <vector>
 #include <map>
 using namespace std;
@@ -14,12 +14,13 @@ using namespace std;
 //    VARIAVEIS AUXILIARES
 // ----------------------------------------------------------------------------------------------------
 
-static string line;             // guarda uma linha do codigo fonte ou pre-processado 
-static string token_aux;        // auxiliar para guardar um token
-static int line_number = 0;     // conta a posicao da linha no codigo fonte
-static int address = 0;         // conta a posicao de memoria do token
-static vector<string> outline;  // linha do codigo de saida
-static const string newline = "\n";     // identificador de nova linha para codigo de saida
+static string line;                 // guarda uma linha do codigo fonte ou pre-processado 
+static string token_aux;            // auxiliar para guardar um token
+static int line_number = 0;         // conta a posicao da linha no codigo fonte
+static int address = 0;             // conta a posicao de memoria do token
+static vector<string> outline;      // linha de saida: contem todo o codigo pre-processado
+static vector<int> objline;         // linha objeto: contem todo o codigo objeto
+static const string newline = "\n"; // identificador de nova linha para codigo de saida
 
 // ----------------------------------------------------------------------------------------------------
 //    DEFINICAO DE OPERACOES E DIRETIVAS RECONHECIDAS PELO MONTADOR
@@ -57,6 +58,24 @@ void stringSwitch () {
     
     SECTION["TEXT"] = s_TEXT;
     SECTION["DATA"] = s_DATA;
+}
+
+// ----------------------------------------------------------------------------------------------------
+//    FUNCOES AUXILIARES
+// ----------------------------------------------------------------------------------------------------
+
+// transforma string com representacao decimal ou hexadecimal em inteiro
+int hrstoi (string token) {
+    int number;                                     // valor de retorno
+
+    if ((token[0] == '0') && (token[1] == 'X')) {   // se for hexadecimal
+        char stoc[ token.size() ];                  // cria array de char com tamanho da string
+        strcpy(stoc, token.c_str());                // copia string para o array de char
+        number = strtol(stoc, NULL, 16);            // numero recebe array convertido em inteiro
+    } else                                          // se for decimal
+        number = stoi(token);                       // numero recebe string convertida em inteiro
+
+    return number;                                  // retorna numero
 }
 
 // ----------------------------------------------------------------------------------------------------
@@ -113,6 +132,7 @@ class Marker {
         text_count = 0;
         data_count = 0;
         error = false;
+        invalid_type = false;
     }
 };
 static Marker cursor;
@@ -122,10 +142,15 @@ class Table;            // linha da tabela
 vector<Table> t_body;   // corpo da tabela
 class Table {
     public:
-    string symbol;      // identificador ou rotulo
-    string value;       // sinonimo ou constante
+        string symbol;          // identificador ou rotulo
+        string value;           // sinonimo ou constante
+        int stance = -1;        // endereco do rotulo
+        bool def = false;       // indica se endereco do rotulo foi definido
+        vector<int> list;       // lista de enderecos em que o simbolo aparece
+        vector<int> ln_list;    // lista de linhas em que o simbolo parece
+        int index;              // indice do rotulo na tabela
 
-    // insere elementos na tabela
+    // insere elementos na tabela de identificadores
     void insert (string symbol, string value) {
         // insere elementos em uma linha
         this->symbol = symbol;
@@ -138,26 +163,85 @@ class Table {
         t_body.push_back (aux);
     }
 
+    // insere elementos na tabela de simbolos
+    void insert (string symbol, int stance, bool def) {
+        // insere elemento em uma linha
+        this->symbol = symbol;
+        this->stance = stance;
+        this->def = def;
+
+        // insere linha na tabela
+        Table aux;
+        aux.symbol = symbol;
+        aux.def = def;
+
+        // se for definicao, limpa lista e adiciona endereco verdadeiro
+        if (def) {
+            aux.stance = stance;
+            aux.list.clear();
+            aux.ln_list.clear();
+        }
+        // se nao for definicao, salva endereco de aparicao na lista
+        else {
+            aux.stance = -1;
+            aux.list.push_back (stance);
+            aux.ln_list.push_back (line_number);
+        }
+        // guarda na tabela
+        t_body.push_back (aux);
+    }
+
+    // insere endereco na na lista de um simbolo
+    void insert_list (int position) {
+        t_body[index].list.push_back (position);
+        t_body[index].ln_list.push_back (line_number);
+    }
+
     // procura uma palavra na tabela
     int search (string word) {
         // enquanto tabela nao acabou
         for (unsigned int i=0; i < t_body.size(); i++) {
             symbol = t_body[i].symbol;
             value = t_body[i].value;
+            stance = t_body[i].stance;
+            def = t_body[i].def;
+            index = i;
             if (word == symbol) // se palavra estiver na tabela
                 return 1;       // retorna achou
         }                       // se nao estiver na tabela
         return 0;               // retorna nao achou
     }
 
+    // define endereco do simbolo como verdadeiro e substitui todas as linhas da lista por esse endereco
+    void validate (string symbol, int stance) {
+        unsigned int i=0, j=0;
+
+        if (search(symbol)) {                           // procura simbolo na tabela
+            t_body[index].stance = stance;              // guarda numero do endereco real
+            t_body[index].def = true;                   // define endereco como verdadeiro
+            while (!(t_body[index].list.empty())) {     // enquanto lista do simbolo nao acabou
+                i = t_body[index].list.size() - 1;      // i recebe ultima posicao da lista
+                j = t_body[index].list[i];              // j recebe endereco salvo na ultima posicao da lista
+                if (j < objline.size())                 // se j for menor que tamanho da saida
+                    objline[j] = objline[j] + stance;   // insere numero do endereco real no ultimo endereco guardado na lista
+                // nota: verificar divs, consts e jumps aqui
+                t_body[index].list.pop_back();          // remove ultima posicao da lista e volta o laco
+            }
+        }
+    }
     // limpa toda a tabela
     void clear () {
         symbol.clear();
         value.clear();
+        stance = -1;
+        def = false;
+        list.clear();
+        ln_list.clear();
         t_body.clear();
     }
 };
 static Table ident_table;
+static Table symbol_table;
 
 // ----------------------------------------------------------------------------------------------------
 //    ANALISE DE CODIGO
@@ -197,7 +281,7 @@ class Analyze {
         return 0;
     }
 
-    // analise: verifica validade dos rotulos inseridos no codigo fonte (usa ou cria auxiliar)
+    // analise: verifica validade dos rotulos inseridos no codigo fonte (usa ou incializa e limpa auxiliar)
     int check_label (string* file_name, string token, int there_are_multiple_labels) {
         bool init = false;
         if ( aux.empty() ) {    // se auxiliar nao foi inicializado
@@ -216,9 +300,6 @@ class Analyze {
             if (label.size() > 50) {
                 std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
                 std::cout << "lexicon error: label is longer than 50 characters:" << endl;
-                while (outline.back().size() > 50) {
-                    outline.back().pop_back();
-                } label = outline.back();
                 std::cout << "\t\"" << label << "\"" << endl;
                 return 0;
             }
@@ -245,62 +326,124 @@ class Analyze {
         return 1;               // se nenhum erro foi encontrado, retorna 1
     }
 
-    // analise: verifica validade dos rotulos e se ha mais de um rotulo na mesma linha (cria e limpa auxiliar)
+    // analise: verifica validade dos rotulos e se ha mais de um rotulo na mesma linha (inicializa auxiliar)
     int super_check_label (string* file_name, istringstream* tokenizer, string* token) {
         insert(*token);
         int mtl = multiple_labels (tokenizer, token);
         return check_label (file_name, *token, mtl);
     }
 
-    // analise: verifica a validade de uma constante
-    int check_const (string* file_name, string token) {
+    // analise: verifica a validade de um inteiro
+    int check_nat (string* file_name, string token) {
+        for (unsigned int i=0; i < token.size(); i++) {
+            // se numero nao contem apenas digitos numericos, erro
+            if (!((token[i] >= 48) && (token[i] <= 57))) {
+                std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+                std::cout << "lexicon error: constant \"" << aux << "\" consisting of invalid characters" << endl;
+                return 0;
+            }
+        } // se nenhum erro foi encontrado, retorna 1
+        return 1;
+    }
+
+    // analise: verifica a validade de um numero
+    int check_number (string* file_name, string token) {
         string aux;
 
         // se numero estiver na base hexadecimal
         if ((token.size() > 2) && (token[0] == '0') && (token[1] == 'X')) {
             token.erase (0,2);
             aux.append("0x"+token);
-            for (unsigned int i=0; i < token.size(); i++) {
+            for (unsigned int i=0; i < token.size(); i++)
                 // se numero nao contem apenas digitos numericos e caracteres de A a F, erro
                 if (!((token[i] >= 48) && (token[i] <= 57)) && !((token[i] >= 41) && (token[i] <= 46))) {
                     std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
                     std::cout << "lexicon error: constant \"" << aux << "\" consisting of invalid characters" << endl;
                     return 0;
                 }
-            }
         } else {
             // se numero for negativo, guardar sinal
             if (token[0] == '-') {
                 token.erase (0,1);
                 aux.append("-");
             }
-            // se numero for inteiro
+            // se numero for inteiro, analisa numero
             aux.append(token);
-            for (unsigned int i=0; i < token.size(); i++) {
-                // se numero nao contem apenas digitos numericos, erro
-                if (!((token[i] >= 48) && (token[i] <= 57))) {
-                    std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-                    std::cout << "lexicon error: constant \"" << aux << "\" consisting of invalid characters" << endl;
-                    return 0;
-                }
-            }
-        } // se nenhum erro foi encontrado, retorna 1
+            return check_nat (file_name, token);
+        }
+        // se nenhum erro foi encontrado, retorna 1
         return 1;
     }
 
     // analise: verifica validade de argumento passado a diretiva IF 
     void check_token (string* file_name, string token) {
-        int valid_const;
+        int valid_number;
 
         if ((token[0] == '-') || ((token[0] >= 48) && (token[0] <= 57))) {  // se token for numero
-            valid_const = check_const (file_name, token);                   // verifica validade da constante
-            if (valid_const) outline.push_back (token);                     // se for valida, insere na linha de saida
+            valid_number = check_number (file_name, token);                 // verifica validade do numero
+            if (valid_number) outline.push_back (token);                    // se for valido, insere na linha de saida
         } else if (ident_table.search (token)) {                            // se for identificador, procura na tabela
             outline.push_back (ident_table.value);                          // se achou, insere valor na linha de saida
         } else {                                                            // se nao achou, erro
             std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
             std::cout << "semantic error: label \"" << token << "\" has not been declared" << endl;
             outline.pop_back();                                             // remove IF da linha de saida
+        }
+    }
+    // analise: verifica validade de operando passado a uma instrucao 
+    void check_operand (string* file_name, string token, int position, bool label_only) {
+        int valid_const;
+
+        // se nao for para analisar apenas rotulo e token for numero
+        if ((!label_only) && ((token[0] == '-') || ((token[0] >= 48) && (token[0] <= 57)))) {
+            valid_const = check_number (file_name, token);          // verifica validade do numero
+            if (valid_const) objline.push_back (hrstoi(token));     // se for valido, insere na saida
+        }
+        // se for rotulo, procura na tabela de simbolos
+        else if (symbol_table.search (token)) {
+            if (symbol_table.def) {                         // se achou rotulo definido
+                objline.push_back (symbol_table.stance);    // inserir endereco na saida
+            } else {                                        // se achou rotulo indefinido
+                symbol_table.insert_list (position);        // insere endereco na lista do simbolo
+                objline.push_back(0);                       // insere 0 na saida
+            }
+        } else {                                            // se nao achou rotulo na tabela
+            symbol_table.insert (token, position, false);   // insere rotulo indefinido na tabela
+            objline.push_back(0);                           // insere 0 na saida
+        }
+    }
+    // analise: separa argumentos dentro de uma expressao
+    void check_expression (string* file_name, string expression, int position) {
+        istringstream tokenizer {expression};
+        vector<string> tokens;
+
+        // separa expressao em sub-operandos
+        while (getline(tokenizer, expression, '+')) {
+            tokens.push_back (expression);
+        }
+        // se houver apenas um sub-operando, analisa como rotulo ou numero
+        if (tokens.size() == 1) {
+            check_operand (file_name, tokens.front(), position, false);
+        }
+        // se houver mais de um operando, analisa um rotulo e depois um numero natural
+        else if (tokens.size() > 1) {
+            check_operand (file_name, tokens[0], position, true);       // verifica rotulo
+            if (check_nat (file_name, tokens[1])) {                     // se natural for valido
+                objline.push_back (objline.back() + stoi(tokens[1]));   // soma endereco do rotulo e numero na saida
+            }                                                           // se natural for invalido, nao realiza soma
+            // se houver mais de dois operandos, erro
+            if (tokens.size() > 2) {
+                std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+                std::cout << "syntactic error: operand receiving too many arguments" << endl;
+            }
+        }
+    }
+    // analise: verifica existencia de multiplos argumentos na mesma instrucao
+    void multiple_arguments (string* file_name, istringstream* tokenizer, string* token, string instruction) {
+        if (!tokenizer->eof() && (*tokenizer >> *token)) {
+            std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+            std::cout << "syntactic error: " << instruction << " receiving too many arguments" << endl;
+            while (*tokenizer >> *token);   // ignora o restante da linha
         }
     }
     // analise: localiza secao atual e incrementa sua contagem
@@ -338,7 +481,7 @@ class Analyze {
             std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
             // se secoes ja foram definidas, erro de tentativa de sobrecarregamento de secoes
             if ( cursor.full() ) {
-                std::cout << "syntactic error: more than two sections" << endl;
+                std::cout << "syntactic error: section overflow" << endl;
                 cursor.error = false;   // limpa erro para proxima avaliacao
             } // se achou tipo desconhecido, erro de tipo invalido
             else if (cursor.invalid_type) {
@@ -352,7 +495,23 @@ class Analyze {
             } // se nao houver erro, verificar se tipo ja foi declarado anteriormente
         } else if ( cursor.overflowed(*token) ) {
             std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-            std::cout << "syntactic error: " << *token << " section already exists" << endl;
+            std::cout << "syntactic error: SECTION " << *token << " already exists" << endl;
+        } // se houver outro token apos declaracao, erro
+        multiple_arguments (file_name, tokenizer, token, "SECTION directive");
+    }
+
+    // analise: verifica se operacao esta fora da secao de texto
+    void outside_text (string* file_name, string token) {
+        if ((cursor.text_count == 0) || (cursor.data_count > 0)) {
+            std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+            std::cout << "semantic error: " << token << " operation outside SECTION TEXT" << endl;
+        }
+    }
+    // analise: verifica se diretiva esta fora da secao de dados
+    void outside_data (string* file_name, string token) {
+        if (cursor.data_count == 0) {
+            std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+            std::cout << "semantic error: " << token << " directive outside SECTION DATA" << endl;
         }
     }
 };
@@ -361,69 +520,246 @@ class Analyze {
 //    SINTESE DE CODIGO
 // ----------------------------------------------------------------------------------------------------
 
+// funcao auxiliar de passagem unica: processa uma operacao
+void process_opcode (string* file_name, istringstream* tokenizer, string* token, Analyze* word) {
+    string operation = *token;
+
+    // se linha nao acabou, pega operando
+    if (!tokenizer->eof() && (*tokenizer >> *token)) {
+        word->check_expression (file_name, *token, address);                            // verifica validade da expressao e insere na saida
+        word->multiple_arguments (file_name, tokenizer, token, operation+" operation"); // verifica se ha sobrecarga de operandos
+        address++;
+    }
+    // se linha acabou, erro
+    else {
+        std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+        std::cout << "syntactic error: missing operand in " << operation << " instruction" << endl;
+    }
+}
+
+// funcao auxiliar de passagem unica: processa operacao COPY
+void process_copy (string* file_name, istringstream* tokenizer, string* token, Analyze* word) {
+    int overflow = 0;
+
+    // se linha nao acabou, pega operandos
+    if (!tokenizer->eof() && (*tokenizer >> *token)) {
+        string expression = *token;
+        istringstream parser {expression};
+        vector<string> operands;
+
+        // separa operandos
+        while (getline(parser, expression, ',')) {
+            operands.push_back (expression);
+        }
+        // se houver apenas um operando, analisa, insere na saida e mostra erro
+        if (operands.size() == 1) {
+            word->check_expression (file_name, operands[0], address);
+            address++;
+            std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+            std::cout << "syntactic error: missing second operand in COPY operation" << endl;
+        }
+        // se houver mais de um operando, analisa e insere ambos na saida
+        else if (operands.size() > 1) {
+            word->check_expression (file_name, operands[0], address);
+            address++;
+            word->check_expression (file_name, operands[1], address);
+            address++;
+
+            // se houver sobrecarga de operandos, erro
+            if (operands.size() > 2) {
+                std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+                std::cout << "syntactic error: COPY operation receiving too many arguments" << endl;
+                overflow = 1;
+            }
+        } // se nao houve erro de sobrecarga de operandos por virgula, verificar sobrecarga por espacos
+        if (!overflow) {
+            word->multiple_arguments (file_name, tokenizer, token, "COPY operation");
+        }
+    }
+    else { // se nao ha operandos, erro
+        std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+        std::cout << "syntactic error: missing operands in COPY instruction" << endl;
+    }
+
+}
+
 // passagem unica
 void onepass (string* file_name) {
-    Analyze label;
+    Analyze word;
     istringstream tokenizer {line};
     string token;
     line_number++;
 
+    // enquanto linha nao acabou
     while (tokenizer >> token) {
-        // std::cout << token << endl;
 
-        // switch ( DIRECTIVE[token] ) {
-        //     case d_SECTION:
-        //         tokenizer >> token;
-        //         switch ( SECTION[token] ) {
-        //             case s_TEXT: break; // aqui devera vir o switch para opcodes
-        //             case s_DATA: break;
-        //         } break;
-        //     case d_SPACE:   // std::cout << token << endl;
-        //                     break;
-        //     case d_CONST:   // std::cout << token << endl;
-        //                     break;
-        //     default:
-        //         break;
-        // }
+        // se token for rotulo
+        if ( token.back() == ':' ) {
+            token.pop_back();                   // ignora ':'
+            if (symbol_table.search (token)) {  // procura rotulo na tabela de simbolos
+                if (symbol_table.def) {         // se achou e simbolo ja foi definido, erro
+                    std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+                    std::cout << "semantic error: label \"" << token << "\" has already been declared" << endl;
+                } else {                                            // se achou, mas ainda nao foi definido
+                    symbol_table.validate (token, address);         // define simbolo na tabela de simbolos
+                    if (!tokenizer.eof() && (tokenizer >> token));  // se linha nao acabou, pega proximo token
+                    else {                                          // se linha acabou, erro
+                        std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+                        std::cout << "syntactic error: label \"" << token << "\" does not point to any memory addresses" << endl;
+                    }
+                }
+            } else { // se nao achou rotulo na tabela de simbolos
+                word.super_check_label (file_name, &tokenizer, &token); // analisa validade do rotulo
+                symbol_table.insert (word.content(), address, true);    // insere rotulo definido na tabela de simbolos
+            }
+        }
+        // se token for diretiva
+        switch ( DIRECTIVE[token] ) {
+            
+            case d_SECTION:
+                word.check_section (file_name, &tokenizer, &token); // verifica validade da secao
+                break;
 
-        switch ( OPCODE[token] ) {
-            case ADD:       // std::cout << token << endl;
-                            break;
-            case SUB:       // std::cout << token << endl;
-                            break;
-            case MULT:      // std::cout << token << endl;
-                            break;
-            case DIV:       // std::cout << token << endl;
-                            break;
-            case JMP:       // std::cout << token << endl;
-                            break;
-            case JMPN:      // std::cout << token << endl;
-                            break;
-            case JMPP:      // std::cout << token << endl;
-                            break;
-            case JMPZ:      // std::cout << token << endl;
-                            break;
-            case COPY:      // std::cout << token << endl;
-                            break;
-            case LOAD:      // std::cout << token << endl;
-                            break;
-            case STORE:     // std::cout << token << endl;
-                            break;
-            case INPUT:     // std::cout << token << endl;
-                            break;
-            case OUTPUT:    // std::cout << token << endl;
-                            break;
-            case STOP:      // std::cout << token << endl;
-                            break;
-            default:
-                // se token for rotulo
-                if ( token.back() == ':' ) {
-                    // std::cout << address << ' ' << token << endl;
-                    token.pop_back();
-                    label.super_check_label (file_name, &tokenizer, &token);
-                    address++; // precisa ajustar para space
+            case d_SPACE:
+                word.outside_data (file_name, token);       // verifica se SPACE esta dentro de SECTION DATA
+                // se linha nao acabou e proxima palavra eh numero natural, analisa
+                if (!tokenizer.eof() && (tokenizer >> token) && word.check_nat (file_name, token)) {
+                    for (int i=0; i < stoi(token); i++) {   // para o numero de espacos inseridos
+                        objline.push_back(0);               // guarda zero
+                    } address = address + stoi(token);      // incrementa endereco
+                } else {                    // caso contrario
+                    objline.push_back(0);   // guarda apenas um espaco
+                    address++;              // incrementa endereco
+                } // verifica a existencia de operandos posteriores
+                word.multiple_arguments (file_name, &tokenizer, &token, "SPACE directive");
+                break;
+
+            case d_CONST:
+                word.outside_data (file_name, token);   // verifica se CONST esta dentro de SECTION DATA
+                // se linha nao acabou e proxima palavra eh numero
+                if (!tokenizer.eof() && (tokenizer >> token)) {
+                    if (word.check_number (file_name, token)) { // analisa numero
+                        objline.push_back (hrstoi(token));      // se valido, insere constante na saida
+                        address++;                              // incrementa endereco
+                    } // verifica a existencia de operandos posteriores
+                    word.multiple_arguments (file_name, &tokenizer, &token, "CONST directive");
+                } else {                    // caso contrario, erro
+                    std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+                    std::cout << "syntactic error: missing constant in CONST statement" << endl;
+                    objline.push_back(0);   // insere zero no lugar da constante
+                    address++;              // incrementa endereco
                 }
                 break;
+
+            default: break;
+        }
+
+        // se token for operacao
+        switch ( OPCODE[token] ) {
+
+            case ADD:
+                word.outside_text (file_name, token);   // verifica se ADD esta dentro de SECTION TEXT
+                objline.push_back(1);                   // insere na saida
+                address++;                              // incrementa endereco
+                process_opcode (file_name, &tokenizer, &token, &word);
+                break;
+
+            case SUB:
+                word.outside_text (file_name, token);
+                objline.push_back(2);
+                address++;
+                process_opcode (file_name, &tokenizer, &token, &word);
+                break;
+
+            case MULT:
+                word.outside_text (file_name, token);
+                objline.push_back(3);
+                address++;
+                process_opcode (file_name, &tokenizer, &token, &word);
+                break;
+
+            case DIV:
+                word.outside_text (file_name, token);
+                objline.push_back(4);
+                address++;
+                process_opcode (file_name, &tokenizer, &token, &word);
+                break;
+
+            case JMP:
+                word.outside_text (file_name, token);
+                objline.push_back(5);
+                address++;
+                process_opcode (file_name, &tokenizer, &token, &word);
+                break;
+
+            case JMPN:
+                word.outside_text (file_name, token);
+                objline.push_back(6);
+                address++;
+                process_opcode (file_name, &tokenizer, &token, &word);
+                break;
+
+            case JMPP:
+                word.outside_text (file_name, token);
+                objline.push_back(7);
+                address++;
+                process_opcode (file_name, &tokenizer, &token, &word);
+                break;
+
+            case JMPZ:
+                word.outside_text (file_name, token);
+                objline.push_back(8);
+                address++;
+                process_opcode (file_name, &tokenizer, &token, &word);
+                break;
+
+            case COPY:
+                word.outside_text (file_name, token);
+                objline.push_back(9);
+                address++;
+                process_copy (file_name, &tokenizer, &token, &word);
+                break;
+
+            case LOAD:
+                word.outside_text (file_name, token);
+                objline.push_back(10);
+                address++;
+                process_opcode (file_name, &tokenizer, &token, &word);
+                break;
+
+            case STORE:
+                word.outside_text (file_name, token);
+                objline.push_back(11);
+                address++;
+                process_opcode (file_name, &tokenizer, &token, &word);
+                break;
+
+            case INPUT:
+                word.outside_text (file_name, token);
+                objline.push_back(12);
+                address++;
+                process_opcode (file_name, &tokenizer, &token, &word);
+                break;
+
+            case OUTPUT:
+                word.outside_text (file_name, token);
+                objline.push_back(13);
+                address++;
+                process_opcode (file_name, &tokenizer, &token, &word);
+                break;
+
+            case STOP:
+                word.outside_text (file_name, token);
+                objline.push_back(14);
+                address++;
+                if (!tokenizer.eof() && (tokenizer >> token)) {
+                    std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+                    std::cout << "syntactic error: STOP operation receiving unexpected arguments" << endl;
+                    while (tokenizer >> token);
+                }
+                break;
+
+            default: break;
         }
     }
 }
@@ -601,9 +937,9 @@ void preprocessing (string* file_name) {
                 // se identificador nao estiver vazio e nao for repetido, inserir numa tabela relacionando-o com seu sinonimo
                 if ( !word.empty() ) {
                     if (word.check_label (file_name, token, mtl)) {     // analisa validade do identificador
-                        // se linha nao acabou, pega a constante se token nao for comentario
+                        // se linha nao acabou, pega um numero se token nao for comentario
                         if (!tokenizer.eof() && (tokenizer >> token) && !clear_comment (&tokenizer, &token, false)) {
-                            word.check_const (file_name, token);            // analisa validade da constante
+                            word.check_number (file_name, token);           // analisa validade do numero
                             if (ident_table.search (word.content()) ) {     // se identificador ja estava na tabela, erro
                                 std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
                                 std::cout << "semantic error: label \"" << word.content() << "\" has already been declared" << endl;
@@ -628,7 +964,7 @@ void preprocessing (string* file_name) {
                 // se linha nao acabou, captura proximo token, se token for comentario, pula linha, se nao erro
                 if (!tokenizer.eof() && (tokenizer >> token) && !clear_comment (&tokenizer, &token, false)) {
                     std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-                    std::cout << "syntactic error: EQU directive has too many arguments" << endl;
+                    std::cout << "syntactic error: EQU directive receiving too many arguments" << endl;
                     while (tokenizer >> token);     // ignora o restante da linha
                 }
                 break;
@@ -670,7 +1006,7 @@ int main () {
     stringSwitch();     // inicializa palavras reservadas
 
     // abre arquivo contendo o codigo fonte
-    string file_name = "testing.asm"; // nota: essa string depois vai ser o argumento iniciado junto ao programa na linha de comando
+    string file_name = "testing2.asm"; // nota: essa string depois vai ser o argumento iniciado junto ao programa na linha de comando
     ifstream file (file_name);
 
     // cria um arquivo contendo o codigo pre-processado
@@ -697,8 +1033,19 @@ int main () {
         line_number = 0;            // nota: atualizar depois para linha do codigo fonte
         while ( !file.eof() ) {     // enquanto arquivo nao acabou
             getline (file, line);   // le linha do codigo pre-processado
-            // onepass (&pre_name);    // realiza primeira passagem
+            onepass (&pre_name);    // realiza primeira passagem
         } file.close();
+
+        // escreve o codigo objeto
+        // ofstream out_file (obj_name);
+        // write_preprocessed_file ();
+        // out_file.close();
+
+        // nota:
+        std::cout << endl;
+        for (unsigned int i=0; i < objline.size(); i++) std::cout << objline[i] << " ";
+        std::cout << endl;
+        // nota:
     }
     else std::cout << endl << "ERROR: File not found!" << endl;
 
