@@ -137,6 +137,14 @@ class Marker {
 };
 static Marker cursor;
 
+// 
+class Informant {
+    /* essa classe deve me ajudar a ver se o operando de uma instrucao aponta para o lugar errado
+    (expressoes aritmeticas devem apontar para SECTION DATA, enquanto JMP deve apontar para SECTION
+    TEXT), se DIV por 0 (valor que esta em SECTION DATA, pois operando eh endereco) */
+};
+static Informant info;
+
 // classe para criar tabelas
 class Table;            // linha da tabela
 vector<Table> t_body;   // corpo da tabela
@@ -215,6 +223,7 @@ class Table {
     // define endereco do simbolo como verdadeiro e substitui todas as linhas da lista por esse endereco
     void validate (string symbol, int stance) {
         unsigned int i=0, j=0;
+        int operation, operand;
 
         if (search(symbol)) {                           // procura simbolo na tabela
             t_body[index].stance = stance;              // guarda numero do endereco real
@@ -224,8 +233,23 @@ class Table {
                 j = t_body[index].list[i];              // j recebe endereco salvo na ultima posicao da lista
                 if (j < objline.size())                 // se j for menor que tamanho da saida
                     objline[j] = objline[j] + stance;   // insere numero do endereco real no ultimo endereco guardado na lista
-                // nota: verificar divs, consts e jumps aqui
                 t_body[index].list.pop_back();          // remove ultima posicao da lista e volta o laco
+            }
+        }
+    }
+    // procura todas os simbolos indefinidos na tabela
+    void search_undefined (string* file_name) {
+        // enquanto tabela nao acabou
+        for (unsigned int i=0; i < t_body.size(); i++) {
+            symbol = t_body[i].symbol;
+            def = t_body[i].def;
+            // se achou simbolo indefinido, mostra todas as linhas que simbolo aparece
+            if (def == false) {
+                std::cout << endl << "Lines { ";
+                for (unsigned int j=0; j < t_body[i].ln_list.size(); j++)
+                    std::cout << t_body[i].ln_list[j] << " ";
+                std::cout << "} of [" << *file_name << "]:" << endl;
+                std::cout << "semantic error: label \"" << symbol << "\" is undefined" << endl;
             }
         }
     }
@@ -520,6 +544,11 @@ class Analyze {
 //    SINTESE DE CODIGO
 // ----------------------------------------------------------------------------------------------------
 
+// passagem unica: escreve codigo objeto
+void write_object_file (string* file_name) {
+    symbol_table.search_undefined (file_name);
+}
+
 // funcao auxiliar de passagem unica: processa uma operacao
 void process_opcode (string* file_name, istringstream* tokenizer, string* token, Analyze* word) {
     string operation = *token;
@@ -583,7 +612,7 @@ void process_copy (string* file_name, istringstream* tokenizer, string* token, A
 
 }
 
-// passagem unica
+// passagem unica: funcao principal
 void onepass (string* file_name) {
     Analyze word;
     istringstream tokenizer {line};
@@ -591,6 +620,7 @@ void onepass (string* file_name) {
     line_number++;
 
     // enquanto linha nao acabou
+    bool invalid_token = true;
     while (tokenizer >> token) {
 
         // se token for rotulo
@@ -618,6 +648,7 @@ void onepass (string* file_name) {
             
             case d_SECTION:
                 word.check_section (file_name, &tokenizer, &token); // verifica validade da secao
+                invalid_token = false;
                 break;
 
             case d_SPACE:
@@ -632,9 +663,11 @@ void onepass (string* file_name) {
                     address++;              // incrementa endereco
                 } // verifica a existencia de operandos posteriores
                 word.multiple_arguments (file_name, &tokenizer, &token, "SPACE directive");
+                invalid_token = false;
                 break;
 
             case d_CONST:
+                invalid_token = false;
                 word.outside_data (file_name, token);   // verifica se CONST esta dentro de SECTION DATA
                 // se linha nao acabou e proxima palavra eh numero
                 if (!tokenizer.eof() && (tokenizer >> token)) {
@@ -649,6 +682,7 @@ void onepass (string* file_name) {
                     objline.push_back(0);   // insere zero no lugar da constante
                     address++;              // incrementa endereco
                 }
+                invalid_token = false;
                 break;
 
             default: break;
@@ -759,7 +793,13 @@ void onepass (string* file_name) {
                 }
                 break;
 
-            default: break;
+            default:
+                // para qualquer operacao nao reconhecida, erro
+                if (invalid_token) {
+                    std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+                    std::cout << "semantic error: " << token << " is an invalid instruction" << endl;
+                }
+                break;
         }
     }
 }
@@ -810,10 +850,14 @@ int change_places (ofstream* pre_file, unsigned int i, bool* text_sign, bool* da
 }
 
 // pre-processamento: escreve codigo pre-processado
-void write_preprocessed_file (ofstream* pre_file) {
-    cursor.clear();             // limpa o cursor para a passagem unica
+void write_preprocessed_file (ofstream* pre_file, string* file_name) {
     bool text_sign = false;     // sinaliza se escreveu SECTION TEXT
     bool data_sign = false;     // sinaliza se escreveu SECTION DATA
+
+    if (cursor.text_count == 0) {
+        std::cout << endl << "In [" << *file_name << "]:" << endl;
+        std::cout << "syntactic error: code has missing SECTION TEXT" << endl;
+    }
 
     // enquanto linha de saida nao acabou
     for (unsigned int i=0; i < outline.size(); i++) {
@@ -835,10 +879,10 @@ void write_preprocessed_file (ofstream* pre_file) {
 
         switch ( DIRECTIVE[ outline[i] ] ) {
 
-            case d_SECTION:         // se palavra for diretiva SECTION
-                if (!text_sign)     // se ainda nao escreveu SECTION TEXT, verificar tipo da secao
+            case d_SECTION: // se palavra for diretiva SECTION, se ainda nao escreveu SECTION TEXT, verificar tipo da secao
+                if (!text_sign && (cursor.text_count > 0)) {
                     i = change_places(pre_file, i, &text_sign, &data_sign);
-                else                // se escreveu SECTION TEXT, escreve SECTION no arquivo de saida
+                } else      // se escreveu SECTION TEXT, escreve SECTION no arquivo de saida
                     *pre_file << outline[i] << " ";
                 break;
 
@@ -863,6 +907,7 @@ void write_preprocessed_file (ofstream* pre_file) {
                 break;
         }
     }
+    cursor.clear();         // limpa o cursor para a passagem unica
     outline.clear();        // ao final, limpar linha de saida e
     ident_table.clear();    // limpar tabela de identificadores
 }
@@ -1026,7 +1071,7 @@ int main () {
 
         // escreve o codigo pre-processado
         ofstream out_file (pre_name);
-        write_preprocessed_file (&out_file);
+        write_preprocessed_file (&out_file, &file_name);
         out_file.close();
 
         file.open (pre_name);
@@ -1038,7 +1083,7 @@ int main () {
 
         // escreve o codigo objeto
         // ofstream out_file (obj_name);
-        // write_preprocessed_file ();
+        write_object_file (&pre_name);
         // out_file.close();
 
         // nota:
