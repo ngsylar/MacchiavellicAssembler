@@ -240,11 +240,11 @@ class Table {
             def = t_body[i].def;
             // se achou simbolo indefinido, mostra todas as linhas que simbolo aparece
             if (def == false) {
-                std::cout << endl << "Lines { ";
+                std::cout << endl << "Linhas { ";
                 for (unsigned int j=0; j < t_body[i].line_list.size(); j++)
                     std::cout << t_body[i].line_list[j] << " ";
-                std::cout << "} of [" << *file_name << "]:" << endl;
-                std::cout << "semantic error: label \"" << symbol << "\" is undefined" << endl;
+                std::cout << "} de [" << *file_name << "]:" << endl;
+                std::cout << "Erro Semantico: rotulo \"" << symbol << "\" nao foi definido" << endl;
             }
         }
     }
@@ -325,15 +325,15 @@ class Informant {
         while ( !empty(div_list) ) {
             i = iterate(div_list);
             if (objline[i] == 0) {
-                std::cout << endl << "Lines { ";
+                std::cout << endl << "Linhas { ";
                 while ( !empty(div_list) ) {
                     i = iterate(div_list);
                     if (objline[i] == 0)
                         std::cout << div_list[0].front() << " ";
                     pop_front (div_list);
                 }
-                std::cout << "} of [" << *file_name << "]:" << endl;
-                std::cout << "semantic error: division by zero" << endl;
+                std::cout << "} de [" << *file_name << "]:" << endl;
+                std::cout << "Erro Semantico: divisao por zero" << endl;
                 break;
             }
             pop_front (div_list);
@@ -343,15 +343,15 @@ class Informant {
             while ( !empty(jmp_list) ) {
                 i = jmp_list[1].front();
                 if (objline[i] >= cursor.data_begin) {
-                    std::cout << endl << "Lines { ";
+                    std::cout << endl << "Linhas { ";
                     while ( !empty(jmp_list) ) {
                         i = jmp_list[1].front();
                         if (objline[i] >= cursor.data_begin)
                             std::cout << jmp_list[0].front() << " ";
                         pop_front (jmp_list);
                     }
-                    std::cout << "} of [" << *file_name << "]:" << endl;
-                    std::cout << "semantic error: jump to SECTION DATA" << endl;
+                    std::cout << "} de [" << *file_name << "]:" << endl;
+                    std::cout << "Erro Semantico: pulo para SECTION DATA" << endl;
                     break;
                 }
                 pop_front (jmp_list);
@@ -360,15 +360,15 @@ class Informant {
         while ( !empty(set_list) ) {
             i = set_list[1].front();
             if (search_const (objline[i])) {
-                std::cout << endl << "Lines { ";
+                std::cout << endl << "Linhas { ";
                 while ( !empty(set_list) ) {
                     i = set_list[1].front();
                     if (search_const (objline[i]))
                         std::cout << set_list[0].front() << " ";
                     pop_front (set_list);
                 }
-                std::cout << "} of [" << *file_name << "]:" << endl;
-                std::cout << "semantic error: constant value modification" << endl;
+                std::cout << "} de [" << *file_name << "]:" << endl;
+                std::cout << "Erro Semantico: modificacao de valor constante" << endl;
                 break;
             }
             pop_front (set_list);
@@ -423,34 +423,34 @@ class Analyze {
 
         // se label for igual a uma palavra reservada, erro
         if (((OPCODE[label] >= 1) && (OPCODE[label] <= 14)) || ((DIRECTIVE[label] >= 1) && (DIRECTIVE[label] <= 5)) || ((SECTION[label] >= 1) && (SECTION[label] <= 2))) {
-            std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-            std::cout << "semantic error: invalid label, \"" << label << "\" is a keyword" << endl;
+            std::cout << endl << "Linha " << line_number << " de [" << *file_name << "]:" << endl;
+            std::cout << "Erro Semantico: rotulo invalido, \"" << label << "\" eh palavra reservada" << endl;
             return 0;
         } else {
             // se o rotulo eh maior que 50 caracteres: erro
             if (label.size() > 50) {
-                std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-                std::cout << "lexicon error: label is longer than 50 characters:" << endl;
+                std::cout << endl << "Linha " << line_number << " de [" << *file_name << "]:" << endl;
+                std::cout << "Erro Lexico: rotulo maior que 50 caracteres:" << endl;
                 std::cout << "\t\"" << label << "\"" << endl;
                 return 0;
             }
             // se o primeiro caractere for um numero: erro
             if ((label.front() >= 48) && (label.front() <= 57)) {
-                std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-                std::cout << "lexicon error: label \"" << label << "\" starts with a number" << endl;
+                std::cout << endl << "Linha " << line_number << " de [" << *file_name << "]:" << endl;
+                std::cout << "Erro Lexico: rotulo \"" << label << "\" comeca com um numero" << endl;
                 return 0;
             }
             // se o rotulo nao eh composto apenas por letras, numeros e underscore: erro
             for (unsigned int i = 0; i < label.size(); i++)
                 if ((label[i] != 95) && (!((label[i] >= 48) && (label[i] <= 57)) && !((label[i] >= 65) && (label[i] <= 90)))) {
-                    std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-                    std::cout << "lexicon error: label \"" << label << "\" is not just letters, numbers or underscore" << endl;
+                    std::cout << endl << "Linha " << line_number << " de [" << *file_name << "]:" << endl;
+                    std::cout << "Erro Lexico: rotulo \"" << label << "\" contem caracteres invalidos" << endl;
                     return 0;
                 }
             // verifica se ha mais de um rotulo na mesma linha
             if (there_are_multiple_labels) {
-                std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-                std::cout << "syntactic error: more than one label on the same line" << endl;
+                std::cout << endl << "Linha " << line_number << " de [" << *file_name << "]:" << endl;
+                std::cout << "Erro Sintatico: mais de um rotulo na mesma linha" << endl;
             }
         }
         if (init) aux.clear();  // se auxiliar foi inicializado dentro da funcao, limpar auxiliar
@@ -469,8 +469,8 @@ class Analyze {
         for (unsigned int i=0; i < token.size(); i++) {
             // se numero nao contem apenas digitos numericos, erro
             if (!((token[i] >= 48) && (token[i] <= 57))) {
-                std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-                std::cout << "lexicon error: constant \"" << aux << "\" consisting of invalid characters" << endl;
+                std::cout << endl << "Linha " << line_number << " de [" << *file_name << "]:" << endl;
+                std::cout << "Erro Lexico: constante \"" << aux << "\" contem caracteres invalidos" << endl;
                 return 0;
             }
         } // se nenhum erro foi encontrado, retorna 1
@@ -488,8 +488,8 @@ class Analyze {
             for (unsigned int i=0; i < token.size(); i++)
                 // se numero nao contem apenas digitos numericos e caracteres de A a F, erro
                 if (!((token[i] >= 48) && (token[i] <= 57)) && !((token[i] >= 41) && (token[i] <= 46))) {
-                    std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-                    std::cout << "lexicon error: constant \"" << aux << "\" consisting of invalid characters" << endl;
+                    std::cout << endl << "Linha " << line_number << " de [" << *file_name << "]:" << endl;
+                    std::cout << "Erro Lexico: constante \"" << aux << "\" contem caracteres invalidos" << endl;
                     return 0;
                 }
         } else {
@@ -516,8 +516,8 @@ class Analyze {
         } else if (ident_table.search (token)) {                            // se for identificador, procura na tabela
             outline.push_back (ident_table.value);                          // se achou, insere valor na linha de saida
         } else {                                                            // se nao achou, erro
-            std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-            std::cout << "semantic error: label \"" << token << "\" has not been declared" << endl;
+            std::cout << endl << "Linha " << line_number << " de [" << *file_name << "]:" << endl;
+            std::cout << "Erro Semantico: rotulo \"" << token << "\" nao foi declarado" << endl;
             outline.pop_back();                                             // remove IF da linha de saida
         }
     }
@@ -564,16 +564,16 @@ class Analyze {
             }                                                       // se natural for invalido, nao realiza soma
             // se houver mais de dois operandos, erro
             if (tokens.size() > 2) {
-                std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-                std::cout << "syntactic error: operand receiving too many arguments" << endl;
+                std::cout << endl << "Linha " << line_number << " de [" << *file_name << "]:" << endl;
+                std::cout << "Erro Sintatico: operando recebendo muitos argumentos" << endl;
             }
         }
     }
     // analise: verifica existencia de multiplos argumentos na mesma instrucao
     void multiple_arguments (string* file_name, istringstream* tokenizer, string* token, string instruction) {
         if (!tokenizer->eof() && (*tokenizer >> *token)) {
-            std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-            std::cout << "syntactic error: " << instruction << " receiving too many arguments" << endl;
+            std::cout << endl << "Linha " << line_number << " de [" << *file_name << "]:" << endl;
+            std::cout << "Erro Sintatico: " << instruction << " recebendo muitos argumentos" << endl;
             while (*tokenizer >> *token);   // ignora o restante da linha
         }
     }
@@ -613,24 +613,24 @@ class Analyze {
 
         // se houver erro em SECTION
         if (cursor.error) {
-            std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+            std::cout << endl << "Linha " << line_number << " de [" << *file_name << "]:" << endl;
             // se secoes ja foram definidas, erro de tentativa de sobrecarregamento de secoes
             if ( cursor.full() ) {
-                std::cout << "syntactic error: section overflow" << endl;
+                std::cout << "Erro Sintatico: sobrecarga de secoes" << endl;
                 cursor.error = false;   // limpa erro para proxima avaliacao
             } // se achou tipo desconhecido, erro de tipo invalido
             else if (cursor.invalid_type) {
-                std::cout << "semantic error: " << *token << " is an invalid section type" << endl;
+                std::cout << "Erro Semantico: " << *token << " eh tipo de secao invalido" << endl;
                 cursor.invalid_type = false;
                 cursor.error = false;
             // se tipo nao foi definido, erro de tipo de secao ausente
             } else {
-                std::cout << "syntactic error: missing section type" << endl;
+                std::cout << "Erro Sintatico: tipo de secao ausente" << endl;
                 cursor.error = false;   // limpa erro para proxima avaliacao
             } // se nao houver erro, verificar se tipo ja foi declarado anteriormente
         } else if ( cursor.overflowed(*token) ) {
-            std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-            std::cout << "syntactic error: SECTION " << *token << " already exists" << endl;
+            std::cout << endl << "Linha " << line_number << " de [" << *file_name << "]:" << endl;
+            std::cout << "Erro Sintatico: SECTION " << *token << " ja existe" << endl;
         } // se houver outro token apos declaracao, erro
         multiple_arguments (file_name, tokenizer, token, "SECTION directive");
     }
@@ -638,15 +638,15 @@ class Analyze {
     // analise: verifica se operacao esta fora da secao de texto
     void outside_text (string* file_name, string token) {
         if (cursor.placement != s_TEXT) {
-            std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-            std::cout << "semantic error: " << token << " operation outside SECTION TEXT" << endl;
+            std::cout << endl << "Linha " << line_number << " de [" << *file_name << "]:" << endl;
+            std::cout << "Erro Semantico: operacao " << token << " fora de SECTION TEXT" << endl;
         }
     }
     // analise: verifica se diretiva esta fora da secao de dados
     void outside_data (string* file_name, string token) {
         if (cursor.placement != s_DATA) {
-            std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-            std::cout << "semantic error: " << token << " directive outside SECTION DATA" << endl;
+            std::cout << endl << "Linha " << line_number << " de [" << *file_name << "]:" << endl;
+            std::cout << "Erro Semantico: diretiva " << token << " fora de SECTION DATA" << endl;
         }
     }
 };
@@ -683,8 +683,8 @@ void process_opcode (string* file_name, istringstream* tokenizer, string* token,
     }
     // se linha acabou, erro
     else {
-        std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-        std::cout << "syntactic error: missing operand in " << operation << " instruction" << endl;
+        std::cout << endl << "Linha " << line_number << " de [" << *file_name << "]:" << endl;
+        std::cout << "Erro Sintatico: operando ausente em instrucao " << operation << endl;
     }
 }
 
@@ -706,8 +706,8 @@ void process_copy (string* file_name, istringstream* tokenizer, string* token, A
         if (operands.size() == 1) {
             word->check_expression (file_name, operands[0], address);
             address++;
-            std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-            std::cout << "syntactic error: missing second operand in COPY operation" << endl;
+            std::cout << endl << "Linha " << line_number << " de [" << *file_name << "]:" << endl;
+            std::cout << "Erro Sintatico: segundo operando ausente em operacao COPY" << endl;
         }
         // se houver mais de um operando, analisa e insere ambos na saida
         else if (operands.size() > 1) {
@@ -719,18 +719,18 @@ void process_copy (string* file_name, istringstream* tokenizer, string* token, A
 
             // se houver sobrecarga de operandos, erro
             if (operands.size() > 2) {
-                std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-                std::cout << "syntactic error: COPY operation receiving too many arguments" << endl;
+                std::cout << endl << "Linha " << line_number << " de [" << *file_name << "]:" << endl;
+                std::cout << "Erro Sintatico: operacao COPY recebendo muitos argumentos" << endl;
                 overflow = 1;
             }
         } // se nao houve erro de sobrecarga de operandos por virgula, verificar sobrecarga por espacos
         if (!overflow) {
-            word->multiple_arguments (file_name, tokenizer, token, "COPY operation");
+            word->multiple_arguments (file_name, tokenizer, token, "operacao COPY");
         }
     }
     else { // se nao ha operandos, erro
-        std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-        std::cout << "syntactic error: missing operands in COPY instruction" << endl;
+        std::cout << endl << "Linha " << line_number << " de [" << *file_name << "]:" << endl;
+        std::cout << "Erro Sintatico: operandos ausentes em instrucao COPY" << endl;
     }
 
 }
@@ -751,14 +751,14 @@ void onepass (string* file_name) {
             token.pop_back();                   // ignora ':'
             if (symbol_table.search (token)) {  // procura rotulo na tabela de simbolos
                 if (symbol_table.def) {         // se achou e simbolo ja foi definido, erro
-                    std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-                    std::cout << "semantic error: label \"" << token << "\" has already been declared" << endl;
+                    std::cout << endl << "Linha " << line_number << " de [" << *file_name << "]:" << endl;
+                    std::cout << "Erro Semantico: rotulo \"" << token << "\" ja foi declarado" << endl;
                 } else {                                            // se achou, mas ainda nao foi definido
                     symbol_table.validate (token, address);         // define simbolo na tabela de simbolos
                     if (!tokenizer.eof() && (tokenizer >> token));  // se linha nao acabou, pega proximo token
                     else {                                          // se linha acabou, erro
-                        std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-                        std::cout << "syntactic error: label \"" << token << "\" does not point to any memory addresses" << endl;
+                        std::cout << endl << "Linha " << line_number << " de [" << *file_name << "]:" << endl;
+                        std::cout << "Erro Sintatico: rotulo \"" << token << "\" nao aponta para nenhum endereco de memoria" << endl;
                     }
                 }
             } else { // se nao achou rotulo na tabela de simbolos
@@ -785,7 +785,7 @@ void onepass (string* file_name) {
                     objline.push_back(0);   // guarda apenas um espaco
                     address++;              // incrementa endereco
                 } // verifica a existencia de operandos posteriores
-                word.multiple_arguments (file_name, &tokenizer, &token, "SPACE directive");
+                word.multiple_arguments (file_name, &tokenizer, &token, "diretiva SPACE");
                 invalid_token = false;
                 break;
 
@@ -799,10 +799,10 @@ void onepass (string* file_name) {
                         report.insert_const();                  // guarda linha e endereco da constante
                         address++;                              // incrementa endereco
                     } // verifica a existencia de operandos posteriores
-                    word.multiple_arguments (file_name, &tokenizer, &token, "CONST directive");
+                    word.multiple_arguments (file_name, &tokenizer, &token, "diretiva CONST");
                 } else {                    // caso contrario, erro
-                    std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-                    std::cout << "syntactic error: missing constant in CONST statement" << endl;
+                    std::cout << endl << "Linha " << line_number << " de [" << *file_name << "]:" << endl;
+                    std::cout << "Erro Sintatico: constante ausente em declaracao CONST" << endl;
                     objline.push_back(0);   // insere zero no lugar da constante
                     address++;              // incrementa endereco
                 }
@@ -911,8 +911,8 @@ void onepass (string* file_name) {
                 objline.push_back(14);
                 address++;
                 if (!tokenizer.eof() && (tokenizer >> token)) {
-                    std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-                    std::cout << "syntactic error: STOP operation receiving unexpected arguments" << endl;
+                    std::cout << endl << "Linha " << line_number << " de [" << *file_name << "]:" << endl;
+                    std::cout << "Erro Sintatico: instrucao STOP recebendo argumentos inesperados" << endl;
                     while (tokenizer >> token);
                 }
                 break;
@@ -920,8 +920,8 @@ void onepass (string* file_name) {
             default:
                 // para qualquer operacao nao reconhecida, erro
                 if (invalid_token) {
-                    std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-                    std::cout << "semantic error: " << token << " is an invalid instruction" << endl;
+                    std::cout << endl << "Linha " << line_number << " de [" << *file_name << "]:" << endl;
+                    std::cout << "Erro Semantico: " << token << " eh instrucao invalida" << endl;
                 }
                 break;
         }
@@ -980,7 +980,7 @@ void write_preprocessed_file (ofstream* pre_file, string* file_name) {
 
     if (cursor.text_count == 0) {
         std::cout << endl << "In [" << *file_name << "]:" << endl;
-        std::cout << "syntactic error: code has missing SECTION TEXT" << endl;
+        std::cout << "Erro Sintatico: codigo com SECTION TEXT ausente" << endl;
     }
 
     // enquanto linha de saida nao acabou
@@ -1099,8 +1099,8 @@ void preprocessing (string* file_name) {
 
                 // se diretiva EQU aparece apos secoes declaradas, erro
                 if ( cursor.got_in() ) {
-                    std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-                    std::cout << "semantic error: EQU directive after section declaration" << endl;
+                    std::cout << endl << "Linha " << line_number << " de [" << *file_name << "]:" << endl;
+                    std::cout << "Erro Semantico: diretiva EQU apos declaracao de secao" << endl;
                 }
 
                 // se identificador nao estiver vazio e nao for repetido, inserir numa tabela relacionando-o com seu sinonimo
@@ -1110,13 +1110,13 @@ void preprocessing (string* file_name) {
                         if (!tokenizer.eof() && (tokenizer >> token) && !clear_comment (&tokenizer, &token, false)) {
                             word.check_number (file_name, token);           // analisa validade do numero
                             if (ident_table.search (word.content()) ) {     // se identificador ja estava na tabela, erro
-                                std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-                                std::cout << "semantic error: label \"" << word.content() << "\" has already been declared" << endl;
+                                std::cout << endl << "Linha " << line_number << " de [" << *file_name << "]:" << endl;
+                                std::cout << "Erro Semantico: rotulo \"" << word.content() << "\" ja foi declarado" << endl;
                             } else                                          // se identificador nao esta na tabela
                                 ident_table.insert (word.content(), token); // insere identificador na tabela
                         } else {                                            // se linha acabou, erro
-                            std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-                            std::cout << "syntactic error: missing constant in EQU statement" << endl;
+                            std::cout << endl << "Linha " << line_number << " de [" << *file_name << "]:" << endl;
+                            std::cout << "Erro Sintatico: constante ausente em declaracao EQU" << endl;
                         }
                     } else while (tokenizer >> token);                  // se identificador for invalido, ignorar linha
                     clear_EQU_line (&tokenizer, &token, word.empty());  // remove diretiva EQU da linha de saida
@@ -1125,15 +1125,15 @@ void preprocessing (string* file_name) {
 
                 // se identificador estiver vazio, erro na diretiva EQU
                 else {
-                    std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-                    std::cout << "syntactic error: label for EQU directive does not exist" << endl;
+                    std::cout << endl << "Linha " << line_number << " de [" << *file_name << "]:" << endl;
+                    std::cout << "Erro Sintatico: rotulo para diretiva EQU nao existe" << endl;
                     clear_EQU_line (&tokenizer, &token, word.empty());  // remove diretiva EQU da linha de saida
                 }
 
                 // se linha nao acabou, captura proximo token, se token for comentario, pula linha, se nao erro
                 if (!tokenizer.eof() && (tokenizer >> token) && !clear_comment (&tokenizer, &token, false)) {
-                    std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-                    std::cout << "syntactic error: EQU directive receiving too many arguments" << endl;
+                    std::cout << endl << "Linha " << line_number << " de [" << *file_name << "]:" << endl;
+                    std::cout << "Erro Sintatico: diretiva EQU recebendo muitos argumentos" << endl;
                     while (tokenizer >> token);     // ignora o restante da linha
                 }
                 break;
@@ -1144,15 +1144,15 @@ void preprocessing (string* file_name) {
                 if (!tokenizer.eof() && (tokenizer >> token) && !clear_comment (&tokenizer, &token, false))
                     word.check_token (file_name, token);    // se nao for comentario, analisa token
                 else {                                      // se nao ha identificador ou constante, erro
-                    std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-                    std::cout << "syntactic error: missing argument in IF statement" << endl;
+                    std::cout << endl << "Linha " << line_number << " de [" << *file_name << "]:" << endl;
+                    std::cout << "Erro Sintatico: argumento ausente em declaracao IF" << endl;
                     outline.pop_back();
                 }
 
                 // se linha nao acabou, pega proximo token, se token for comentario, pula linha, se nao erro
                 if (!tokenizer.eof() && (tokenizer >> token) && !clear_comment (&tokenizer, &token, false)) {
-                    std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
-                    std::cout << "syntactic error: IF directive has too many arguments" << endl;
+                    std::cout << endl << "Linha " << line_number << " de [" << *file_name << "]:" << endl;
+                    std::cout << "Erro Sintatico: diretiva IF recebendo muitos argumentos" << endl;
                     while (tokenizer >> token);     // ignora o restante da linha
                 }
                 break;
@@ -1179,7 +1179,7 @@ int main (int argc, char *argv[]) {
     if (argc > 1) {
         file_name = argv[1];
     } else {
-        std::cout << "Enter a file name: " ;
+        std::cout << "Insira o nome do arquivo: " ;
         std::cin >> file_name;
     }
     ifstream file (file_name);
@@ -1216,7 +1216,7 @@ int main (int argc, char *argv[]) {
         write_object_file (&out_file, &pre_name);
         out_file.close();
     }
-    else std::cout << endl << "ERROR: File not found!" << endl;
+    else std::cout << endl << "ERRO: arquivo nao encontrado!" << endl;
 
     return 0;
 }
