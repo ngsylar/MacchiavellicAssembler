@@ -271,10 +271,11 @@ class Informant {
     // todas as listas guardam as linhas [0] e os enderecos [1] onde as operacoes ocorrem
     vector<int> div_list[2];    // o valor na memoria nao pode ser zero 0
     vector<int> jmp_list[2];    // o operando nao pode ser maior ou igual a cursor.data_begin
-    vector<int> set_list[2];    // para COPY, STORE e INPUT, o operando nao pode ser menor que cursor.data_begin nem apontar para valor constante
-    vector<int> const_list[2];  // apenas guarda enderecos onde um valor constante aparece
+    vector<int> set_list[2];    // para COPY, STORE e INPUT, o operando nao pode apontar para valor constante
+    vector<int> const_list;     // apenas guarda enderecos onde um valor constante aparece
 
     public:
+    // insere elementos numa lista de acordo com a operacao
     void insert (int operation) {
         if (operation == DIV) {
             div_list[0].push_back (line_number);
@@ -287,10 +288,92 @@ class Informant {
             set_list[1].push_back (address);
         }
     }
-
+    // insere endereco na lista de constantes
     void insert_const () {
-        const_list[0].push_back (line_number);
-        const_list[1].push_back (address);
+        const_list.push_back (address);
+    }
+
+    // verificar se lista esta vazia
+    int empty (vector<int> list[]) {
+        return list[0].empty();
+    } // acessar memoria apontada por endereco
+    int iterate (vector<int> list[]) {
+        int i, j;
+        i = list[1].front();
+        j = objline[i];
+        return j;
+    } // apagar primeiro elemento da lista
+    void pop_front (vector<int> list[]) {
+        list[0].erase (list[0].begin());
+        list[1].erase (list[1].begin());
+    }
+
+    // procura um endereco na lista de constantes
+    int search_const (int position) {
+        for (unsigned int i=0; i < const_list.size(); i++) {
+            if (position == const_list[i])
+                return 1;
+        }
+        return 0;
+    }
+
+    // mostrar erros contidos nas listas
+    void post (string* file_name) {
+        int i;
+
+        // lista de DIV
+        while ( !empty(div_list) ) {
+            i = iterate(div_list);
+            if (objline[i] == 0) {
+                std::cout << endl << "Lines { ";
+                while ( !empty(div_list) ) {
+                    i = iterate(div_list);
+                    if (objline[i] == 0)
+                        std::cout << div_list[0].front() << " ";
+                    pop_front (div_list);
+                }
+                std::cout << "} of [" << *file_name << "]:" << endl;
+                std::cout << "semantic error: division by zero" << endl;
+                break;
+            }
+            pop_front (div_list);
+        }
+        // lista de JMPs
+        if (cursor.data_begin >= 0)
+            while ( !empty(jmp_list) ) {
+                i = jmp_list[1].front();
+                if (objline[i] >= cursor.data_begin) {
+                    std::cout << endl << "Lines { ";
+                    while ( !empty(jmp_list) ) {
+                        i = jmp_list[1].front();
+                        if (objline[i] >= cursor.data_begin)
+                            std::cout << jmp_list[0].front() << " ";
+                        pop_front (jmp_list);
+                    }
+                    std::cout << "} of [" << *file_name << "]:" << endl;
+                    std::cout << "semantic error: jump to SECTION DATA" << endl;
+                    break;
+                }
+                pop_front (jmp_list);
+            }
+        // lista de COPY, STORE e INPUT
+        while ( !empty(set_list) ) {
+            i = set_list[1].front();
+            if (search_const (objline[i])) {
+                std::cout << endl << "Lines { ";
+                while ( !empty(set_list) ) {
+                    i = set_list[1].front();
+                    if (search_const (objline[i]))
+                        std::cout << set_list[0].front() << " ";
+                    pop_front (set_list);
+                }
+                std::cout << "} of [" << *file_name << "]:" << endl;
+                std::cout << "semantic error: constant value modification" << endl;
+                break;
+            }
+            pop_front (set_list);
+        }
+        const_list.clear();
     }
 };
 static Informant report;
@@ -439,7 +522,7 @@ class Analyze {
         }
     }
     // analise: verifica validade de operando passado a uma instrucao 
-    void check_operand (string* file_name, string token, int position, bool label_only, int* rule) {
+    void check_operand (string* file_name, string token, int position, bool label_only) {
         int valid_const;
         objline.push_back(0);
 
@@ -461,7 +544,7 @@ class Analyze {
         }
     }
     // analise: separa argumentos dentro de uma expressao
-    void check_expression (string* file_name, string expression, int position, int* rule) {
+    void check_expression (string* file_name, string expression, int position) {
         istringstream tokenizer {expression};
         vector<string> tokens;
 
@@ -471,14 +554,14 @@ class Analyze {
         }
         // se houver apenas um sub-operando, analisa como rotulo ou numero
         if (tokens.size() == 1) {
-            check_operand (file_name, tokens.front(), position, false, rule);
+            check_operand (file_name, tokens.front(), position, false);
         }
         // se houver mais de um operando, analisa um rotulo e depois um numero natural
         else if (tokens.size() > 1) {
-            check_operand (file_name, tokens[0], position, true, rule); // verifica rotulo
-            if (check_nat (file_name, tokens[1])) {                     // se natural for valido
-                objline.back() += stoi(tokens[1]);                      // soma endereco do rotulo e numero na saida
-            }                                                           // se natural for invalido, nao realiza soma
+            check_operand (file_name, tokens[0], position, true);   // verifica rotulo
+            if (check_nat (file_name, tokens[1])) {                 // se natural for valido
+                objline.back() += stoi(tokens[1]);                  // soma endereco do rotulo e numero na saida
+            }                                                       // se natural for invalido, nao realiza soma
             // se houver mais de dois operandos, erro
             if (tokens.size() > 2) {
                 std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
@@ -573,8 +656,17 @@ class Analyze {
 // ----------------------------------------------------------------------------------------------------
 
 // passagem unica: escreve codigo objeto
-void write_object_file (string* file_name) {
-    symbol_table.search_undefined (file_name);
+void write_object_file (ofstream* obj_file, string* file_name) {
+    report.post (file_name);                    // mostra erros em instrucoes
+    symbol_table.search_undefined (file_name);  // mostra rotulos que nao foram definidos
+
+    // enquanto saida nao acabou, escreve no arquivo final
+    for (unsigned int i=0; i < objline.size(); i++) {
+        *obj_file << objline[i] << " ";
+    }
+    cursor.clear();         // limpa o marcador
+    objline.clear();        // limpa a saida
+    symbol_table.clear();   // limpa a tabela de simbolos
 }
 
 // funcao auxiliar de passagem unica: processa uma operacao
@@ -583,7 +675,7 @@ void process_opcode (string* file_name, istringstream* tokenizer, string* token,
 
     // se linha nao acabou, pega operando
     if (!tokenizer->eof() && (*tokenizer >> *token)) {
-        word->check_expression (file_name, *token, address, &rule);                     // verifica validade da expressao e insere na saida
+        word->check_expression (file_name, *token, address);                            // verifica validade da expressao e insere na saida
         word->multiple_arguments (file_name, tokenizer, token, operation+" operation"); // verifica se ha sobrecarga de operandos
         if (((DIV <= rule) && (rule <= JMPZ)) || (rule == STORE) || (rule == INPUT))
             report.insert (rule);
@@ -598,7 +690,6 @@ void process_opcode (string* file_name, istringstream* tokenizer, string* token,
 
 // funcao auxiliar de passagem unica: processa operacao COPY
 void process_copy (string* file_name, istringstream* tokenizer, string* token, Analyze* word) {
-    int rule = COPY;
     int overflow = 0;
 
     // se linha nao acabou, pega operandos
@@ -613,16 +704,16 @@ void process_copy (string* file_name, istringstream* tokenizer, string* token, A
         }
         // se houver apenas um operando, analisa, insere na saida e mostra erro
         if (operands.size() == 1) {
-            word->check_expression (file_name, operands[0], address, &rule);
+            word->check_expression (file_name, operands[0], address);
             address++;
             std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
             std::cout << "syntactic error: missing second operand in COPY operation" << endl;
         }
         // se houver mais de um operando, analisa e insere ambos na saida
         else if (operands.size() > 1) {
-            word->check_expression (file_name, operands[0], address, &rule);
+            word->check_expression (file_name, operands[0], address);
             address++;
-            word->check_expression (file_name, operands[1], address, &rule);
+            word->check_expression (file_name, operands[1], address);
             report.insert (COPY);
             address++;
 
@@ -1080,11 +1171,17 @@ void preprocessing (string* file_name) {
 // ----------------------------------------------------------------------------------------------------
 
 // inicio
-int main () {
+int main (int argc, char *argv[]) {
     stringSwitch();     // inicializa palavras reservadas
 
     // abre arquivo contendo o codigo fonte
-    string file_name = "testing2.asm"; // nota: essa string depois vai ser o argumento iniciado junto ao programa na linha de comando
+    string file_name;
+    if (argc > 1) {
+        file_name = argv[1];
+    } else {
+        std::cout << "Enter a file name: " ;
+        std::cin >> file_name;
+    }
     ifstream file (file_name);
 
     // cria um arquivo contendo o codigo pre-processado
@@ -1115,15 +1212,9 @@ int main () {
         } file.close();
 
         // escreve o codigo objeto
-        // ofstream out_file (obj_name);
-        write_object_file (&pre_name);
-        // out_file.close();
-
-        // nota:
-        std::cout << endl;
-        for (unsigned int i=0; i < objline.size(); i++) std::cout << objline[i] << " ";
-        std::cout << endl;
-        // nota:
+        out_file.open (obj_name);
+        write_object_file (&out_file, &pre_name);
+        out_file.close();
     }
     else std::cout << endl << "ERROR: File not found!" << endl;
 
