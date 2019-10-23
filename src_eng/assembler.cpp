@@ -14,13 +14,14 @@ using namespace std;
 //    VARIAVEIS AUXILIARES
 // ----------------------------------------------------------------------------------------------------
 
-static string line;                 // guarda uma linha do codigo fonte ou pre-processado 
-static string token_aux;            // auxiliar para guardar um token
-static int line_number = 0;         // conta a posicao da linha no codigo fonte
-static int address = 0;             // conta a posicao de memoria do token
-static vector<string> outline;      // linha de saida: contem todo o codigo pre-processado
-static vector<int> objline;         // linha objeto: contem todo o codigo objeto
-static const string newline = "\n"; // identificador de nova linha para codigo de saida
+static string line;                     // guarda uma linha do codigo fonte ou pre-processado 
+static string token_aux;                // auxiliar para guardar um token
+static int line_number = 0;             // conta a posicao da linha no codigo fonte
+static int address = 0;                 // conta a posicao de memoria do token
+static vector<string> outline;          // linha de saida: contem todo o codigo pre-processado
+static vector<int> objline;             // linha objeto: contem todo o codigo objeto
+static const string newline = "\n";     // identificador de nova linha para codigo de saida
+static const string markline = "$";    // identificador de nova linha para codigo de saida
 
 // ----------------------------------------------------------------------------------------------------
 //    DEFINICAO DE OPERACOES E DIRETIVAS RECONHECIDAS PELO MONTADOR
@@ -78,17 +79,78 @@ int hrstoi (string token) {
     return number;                                  // retorna numero
 }
 
+// transforma int em string
+string itos (int number) {
+    stringstream token;
+    token << number;
+    string word = token.str();
+    return word;
+}
+
 // ----------------------------------------------------------------------------------------------------
 //    CLASSES AUXILIARES
 // ----------------------------------------------------------------------------------------------------
 
-// // classe para relacionar numero da linha do arquivo preprocessado com o arquivo fonte
-// class Counter {
-//     public:
-//     int asm_line;
-//     int pre_line;
-// };
-// static vector<Counter> count;
+// classe para relacionar numero da linha do arquivo preprocessado com o arquivo fonte
+class Counter;
+vector<Counter> t_count;
+class Counter {
+    public:
+    int asm_line = 0;
+    int pre_line = 0;
+
+    // conta uma linha do arquivo fonte e salva temporariamente seu numero em outline
+    void lines () {
+        line_number++;
+        string aux = markline;
+        aux.append( itos(line_number) );
+        outline.push_back(aux);
+    }
+    
+    // insere linha no codigo pre-processado, guardando a linha equivalente do codigo fonte
+    void insert_line (ofstream* pre_file) {
+        Counter aux;
+        pre_line++;
+
+        aux.asm_line = this->asm_line;
+        aux.pre_line = this->pre_line;
+        t_count.push_back(aux);
+        *pre_file << endl;
+    }
+
+    // se houver qeubra de linha ou numero da linha, retorna 1
+    int line_break (unsigned int i) {
+        if ((outline[i] == newline) || (outline[i].front() == markline.front())) {
+            if ((outline[i].front() == markline.front())) {
+                string aux = outline[i];
+                aux.erase(0,1);
+                asm_line = stoi(aux)-1;
+            } return 1;
+        } else return 0;
+    }
+
+    // // ve numero da linha do arquivo lido e retorna numero correspondente no arquivo fonte
+    // int check_line (string file_name) {
+    //     string reading;
+        
+    //     for (int i=0; i < 3; i++) {
+    //         reading.insert(0, &file_name.back());
+    //         file_name.pop_back();
+    //     }
+    //     if (reading == "asm") {
+    //         return line_number;
+    //     } else {
+    //         int i = 0;
+    //         do {
+    //             asm_line = t_count[i].asm_line;
+    //             pre_line = t_count[i].pre_line;
+    //             i++;
+    //         } while (line_number != pre_line);
+    //         return asm_line;
+    //     }
+    // }
+};
+static Counter count;
 
 // classe para marcar secao atual no processo de analise
 class Marker {
@@ -978,29 +1040,48 @@ void write_preprocessed_file (ofstream* pre_file, string* file_name) {
     bool text_sign = false;     // sinaliza se escreveu SECTION TEXT
     bool data_sign = false;     // sinaliza se escreveu SECTION DATA
 
+    // se SECTION TEXT nao existe, erro
     if (cursor.text_count == 0) {
         std::cout << endl << "In [" << *file_name << "]:" << endl;
         std::cout << "syntactic error: code has missing SECTION TEXT" << endl;
     }
 
+    unsigned int km=0; while (km < outline.size()) {std::cout << outline[km] << " "; km++;}
+
+    // pular quebras de linha iniciais
+    while ((count.line_break(0)))
+        outline.erase( outline.begin() );
+
     // enquanto linha de saida nao acabou
     for (unsigned int i=0; i < outline.size(); i++) {
 
         // se houver quebra de linha, pula para proxima palavra
-        if (outline[i] == newline) {
-            if ((i+1) != outline.size())
-                do { i++; } while (((i+1) != outline.size()) && (outline[i] == newline));
-            *pre_file << endl;
+        if (count.line_break(i)) {
+            // ignorar quebras de linha
+            if ((i+1) != outline.size()) {
+                do { i++; } while (((i+1) != outline.size()) && (count.line_break(i)));
+                if (count.line_break(i) && ((i+1) == outline.size())) {
+                    count.insert_line (pre_file);                    
+                    break;
+                } // se proximo token for final do arquivo, sair do laco
+            } else {
+                count.insert_line (pre_file);
+                break;
+            } // inserir uma unica quebra de linha
+            count.insert_line (pre_file);
         }
 
         // se palavra for rotulo, escreve no arquivo de saida e pula para proxima palavra
         while (outline[i].back() == ':') {
             *pre_file << outline[i] << " ";
-            if ((i+1) != outline.size())
-                do { i++; } while (((i+1) != outline.size()) && (outline[i] == newline));
-            else break;
+            if ((i+1) != outline.size()) {
+                do { i++; } while (((i+1) != outline.size()) && (count.line_break(i)));
+                if (count.line_break(i) && ((i+1) == outline.size())) break;
+            } else {
+                count.insert_line (pre_file);
+                break;
+            }
         }
-
         switch ( DIRECTIVE[ outline[i] ] ) {
 
             case d_SECTION: // se palavra for diretiva SECTION, se ainda nao escreveu SECTION TEXT, verificar tipo da secao
@@ -1014,12 +1095,12 @@ void write_preprocessed_file (ofstream* pre_file, string* file_name) {
                 if ((i+1) != outline.size()) i++;   // pula para proxima palavra
                 if (outline[i] != "1") {            // se palavra for diferente de '1'
                     // ignora quebra de linha e pula para proxima palavra
-                    for (int j=0; j < 2; j++)
-                        if ((i+1) != outline.size()) i++;
+                    if ((i+1) != outline.size()) i++;
+                    while (((i+1) != outline.size()) && (outline[i+1] != newline)) i++;
                     // se linha de saida ainda nao acabou, ignora a instrucao seguinte
-                    while (((i+1) != outline.size()) && (outline[i] != newline)) i++;
-                } else {                                // se palavra for igual a '1'
-                    if ((i+1) != outline.size()) i++;   // ignora quebra de linha
+                    while (((i+1) != outline.size()) && (count.line_break(i+1))) i++;
+                } else {    // se palavra for igual a '1' ignora quebra de linha
+                    while (((i+1) != outline.size()) && (count.line_break(i+1))) i++;
                 }
                 break;
 
@@ -1031,9 +1112,13 @@ void write_preprocessed_file (ofstream* pre_file, string* file_name) {
                 break;
         }
     }
+
+    km=0; while (km < t_count.size()) {std::cout << t_count[km].pre_line << " = " << t_count[km].asm_line << endl; km++;}
+
     cursor.clear();         // limpa o cursor para a passagem unica
     outline.clear();        // ao final, limpar linha de saida e
     ident_table.clear();    // limpar tabela de identificadores
+    line_number = 0;        // limpa contagem de linhas para primeira passagem
 }
 
 // funcao auxiliar de pre-processamento: remove comentarios
@@ -1049,13 +1134,14 @@ int clear_comment (istringstream* tokenizer, string* token, bool inside_outline)
 
 // funcao auxiliar de pre-processamento: remove diretiva EQU da linha de saida
 void clear_EQU_line (istringstream* tokenizer, string* token, bool ident_empty) {
-    if (!ident_empty) {                                         // se existe identificador
-        outline.pop_back();                                     // remove EQU da linha de saida
-        while (outline.back() == newline) outline.pop_back();   // remove quebras de linha acima, se existirem
-        outline.pop_back();                                     // remove identificador
-    } else {                                // se identificador estiver vazio
-        outline.pop_back();                 // remove EQU da linha de saida
-        while (*tokenizer >> *token);       // ignora o resto da linha
+    if (!ident_empty) {             // se existe identificador
+        outline.pop_back();         // remove EQU da linha de saida
+        while (count.line_break( outline.size()-1 ))
+            outline.pop_back();     // remove quebras de linha acima, se existirem
+        outline.pop_back();         // remove identificador
+    } else {                            // se identificador estiver vazio
+        outline.pop_back();             // remove EQU da linha de saida
+        while (*tokenizer >> *token);   // ignora o resto da linha
     }
 }
 
@@ -1064,8 +1150,9 @@ void preprocessing (string* file_name) {
     Analyze word;                   // token a ser analisado
     istringstream tokenizer {line}; // decompositor de linha
     string token;                   // string lida na linha de entrada
+
+    count.lines();                  // conta uma linha
     int mtl = 0;                    // sinal de retorno de multiple_labels
-    line_number++;
 
     while (tokenizer >> token) {    // enquanto linha nao acabou, pega um token
         outline.push_back(token);   // insere token na lina de saida
@@ -1204,17 +1291,16 @@ int main (int argc, char *argv[]) {
         write_preprocessed_file (&out_file, &file_name);
         out_file.close();
 
-        file.open (pre_name);
-        line_number = 0;            // nota: atualizar depois para linha do codigo fonte
-        while ( !file.eof() ) {     // enquanto arquivo nao acabou
-            getline (file, line);   // le linha do codigo pre-processado
-            onepass (&pre_name);    // realiza primeira passagem
-        } file.close();
+        // file.open (pre_name);
+        // while ( !file.eof() ) {     // enquanto arquivo nao acabou
+        //     getline (file, line);   // le linha do codigo pre-processado
+        //     onepass (&pre_name);    // realiza primeira passagem
+        // } file.close();
 
-        // escreve o codigo objeto
-        out_file.open (obj_name);
-        write_object_file (&out_file, &pre_name);
-        out_file.close();
+        // // escreve o codigo objeto
+        // out_file.open (obj_name);
+        // write_object_file (&out_file, &pre_name);
+        // out_file.close();
     }
     else std::cout << endl << "ERROR: File not found!" << endl;
 
