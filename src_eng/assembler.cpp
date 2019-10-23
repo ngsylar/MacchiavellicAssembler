@@ -106,7 +106,7 @@ class Counter {
         aux.append( itos(line_number) );
         outline.push_back(aux);
     }
-    
+
     // insere linha no codigo pre-processado, guardando a linha equivalente do codigo fonte
     void insert_line (ofstream* pre_file) {
         Counter aux;
@@ -118,7 +118,7 @@ class Counter {
         *pre_file << endl;
     }
 
-    // se houver qeubra de linha ou numero da linha, retorna 1
+    // se houver quebra de linha ou numero da linha, retorna 1
     int line_break (unsigned int i) {
         if ((outline[i] == newline) || (outline[i].front() == markline.front())) {
             if ((outline[i].front() == markline.front())) {
@@ -129,26 +129,38 @@ class Counter {
         } else return 0;
     }
 
-    // // ve numero da linha do arquivo lido e retorna numero correspondente no arquivo fonte
-    // int check_line (string file_name) {
-    //     string reading;
+    // ve numero da linha do arquivo lido e retorna numero correspondente no arquivo fonte
+    string check_line (string file_name) {
+        string reading, aux;
         
-    //     for (int i=0; i < 3; i++) {
-    //         reading.insert(0, &file_name.back());
-    //         file_name.pop_back();
-    //     }
-    //     if (reading == "asm") {
-    //         return line_number;
-    //     } else {
-    //         int i = 0;
-    //         do {
-    //             asm_line = t_count[i].asm_line;
-    //             pre_line = t_count[i].pre_line;
-    //             i++;
-    //         } while (line_number != pre_line);
-    //         return asm_line;
-    //     }
-    // }
+        for (int i=0; i < 3; i++) {
+            reading.insert(0, &file_name.back());
+            file_name.pop_back();
+        }
+        if (reading == "asm") {
+            aux.append (itos(line_number) + " of [ " + file_name+"asm" + " ]");
+            return aux;
+        } else {
+            int i = 0;
+            do {
+                asm_line = t_count[i].asm_line;
+                pre_line = t_count[i].pre_line;
+                i++;
+            } while (line_number != pre_line);
+            aux.append (itos(asm_line) + " of [ " + file_name+"asm" + " ]");
+            return aux;
+        }
+    }
+    // ve numero da linha do arquivo lido e retorna numero correspondente no arquivo fonte
+    int post_lines (int reading_line) {
+        int i = 0;
+        do {
+            asm_line = t_count[i].asm_line;
+            pre_line = t_count[i].pre_line;
+            i++;
+        } while (reading_line != pre_line);
+        return asm_line;
+    }
 };
 static Counter count;
 
@@ -304,7 +316,7 @@ class Table {
             if (def == false) {
                 std::cout << endl << "Lines { ";
                 for (unsigned int j=0; j < t_body[i].line_list.size(); j++)
-                    std::cout << t_body[i].line_list[j] << " ";
+                    std::cout << count.post_lines (t_body[i].line_list[j]) << " ";
                 std::cout << "} of [" << *file_name << "]:" << endl;
                 std::cout << "semantic error: label \"" << symbol << "\" is undefined" << endl;
             }
@@ -391,7 +403,7 @@ class Informant {
                 while ( !empty(div_list) ) {
                     i = iterate(div_list);
                     if (objline[i] == 0)
-                        std::cout << div_list[0].front() << " ";
+                        std::cout << count.post_lines (div_list[0].front()) << " ";
                     pop_front (div_list);
                 }
                 std::cout << "} of [" << *file_name << "]:" << endl;
@@ -409,7 +421,7 @@ class Informant {
                     while ( !empty(jmp_list) ) {
                         i = jmp_list[1].front();
                         if (objline[i] >= cursor.data_begin)
-                            std::cout << jmp_list[0].front() << " ";
+                            std::cout << count.post_lines (jmp_list[0].front()) << " ";
                         pop_front (jmp_list);
                     }
                     std::cout << "} of [" << *file_name << "]:" << endl;
@@ -426,7 +438,7 @@ class Informant {
                 while ( !empty(set_list) ) {
                     i = set_list[1].front();
                     if (search_const (objline[i]))
-                        std::cout << set_list[0].front() << " ";
+                        std::cout << count.post_lines (set_list[0].front()) << " ";
                     pop_front (set_list);
                 }
                 std::cout << "} of [" << *file_name << "]:" << endl;
@@ -485,33 +497,33 @@ class Analyze {
 
         // se label for igual a uma palavra reservada, erro
         if (((OPCODE[label] >= 1) && (OPCODE[label] <= 14)) || ((DIRECTIVE[label] >= 1) && (DIRECTIVE[label] <= 5)) || ((SECTION[label] >= 1) && (SECTION[label] <= 2))) {
-            std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+            std::cout << endl << "Line " << count.check_line (*file_name) << ":" << endl;
             std::cout << "semantic error: invalid label, \"" << label << "\" is a keyword" << endl;
             return 0;
         } else {
             // se o rotulo eh maior que 50 caracteres: erro
             if (label.size() > 50) {
-                std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+                std::cout << endl << "Line " << count.check_line (*file_name) << ":" << endl;
                 std::cout << "lexicon error: label is longer than 50 characters:" << endl;
                 std::cout << "\t\"" << label << "\"" << endl;
                 return 0;
             }
             // se o primeiro caractere for um numero: erro
             if ((label.front() >= 48) && (label.front() <= 57)) {
-                std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+                std::cout << endl << "Line " << count.check_line (*file_name) << ":" << endl;
                 std::cout << "lexicon error: label \"" << label << "\" starts with a number" << endl;
                 return 0;
             }
             // se o rotulo nao eh composto apenas por letras, numeros e underscore: erro
             for (unsigned int i = 0; i < label.size(); i++)
                 if ((label[i] != 95) && (!((label[i] >= 48) && (label[i] <= 57)) && !((label[i] >= 65) && (label[i] <= 90)))) {
-                    std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+                    std::cout << endl << "Line " << count.check_line (*file_name) << ":" << endl;
                     std::cout << "lexicon error: label \"" << label << "\" is not just letters, numbers or underscore" << endl;
                     return 0;
                 }
             // verifica se ha mais de um rotulo na mesma linha
             if (there_are_multiple_labels) {
-                std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+                std::cout << endl << "Line " << count.check_line (*file_name) << ":" << endl;
                 std::cout << "syntactic error: more than one label on the same line" << endl;
             }
         }
@@ -531,7 +543,7 @@ class Analyze {
         for (unsigned int i=0; i < token.size(); i++) {
             // se numero nao contem apenas digitos numericos, erro
             if (!((token[i] >= 48) && (token[i] <= 57))) {
-                std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+                std::cout << endl << "Line " << count.check_line (*file_name) << ":" << endl;
                 std::cout << "lexicon error: constant \"" << aux << "\" consisting of invalid characters" << endl;
                 return 0;
             }
@@ -550,7 +562,7 @@ class Analyze {
             for (unsigned int i=0; i < token.size(); i++)
                 // se numero nao contem apenas digitos numericos e caracteres de A a F, erro
                 if (!((token[i] >= 48) && (token[i] <= 57)) && !((token[i] >= 41) && (token[i] <= 46))) {
-                    std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+                    std::cout << endl << "Line " << count.check_line (*file_name) << ":" << endl;
                     std::cout << "lexicon error: constant \"" << aux << "\" consisting of invalid characters" << endl;
                     return 0;
                 }
@@ -578,7 +590,7 @@ class Analyze {
         } else if (ident_table.search (token)) {                            // se for identificador, procura na tabela
             outline.push_back (ident_table.value);                          // se achou, insere valor na linha de saida
         } else {                                                            // se nao achou, erro
-            std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+            std::cout << endl << "Line " << count.check_line (*file_name) << ":" << endl;
             std::cout << "semantic error: label \"" << token << "\" has not been declared" << endl;
             outline.pop_back();                                             // remove IF da linha de saida
         }
@@ -626,7 +638,7 @@ class Analyze {
             }                                                       // se natural for invalido, nao realiza soma
             // se houver mais de dois operandos, erro
             if (tokens.size() > 2) {
-                std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+                std::cout << endl << "Line " << count.check_line (*file_name) << ":" << endl;
                 std::cout << "syntactic error: operand receiving too many arguments" << endl;
             }
         }
@@ -634,7 +646,7 @@ class Analyze {
     // analise: verifica existencia de multiplos argumentos na mesma instrucao
     void multiple_arguments (string* file_name, istringstream* tokenizer, string* token, string instruction) {
         if (!tokenizer->eof() && (*tokenizer >> *token)) {
-            std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+            std::cout << endl << "Line " << count.check_line (*file_name) << ":" << endl;
             std::cout << "syntactic error: " << instruction << " receiving too many arguments" << endl;
             while (*tokenizer >> *token);   // ignora o restante da linha
         }
@@ -675,7 +687,7 @@ class Analyze {
 
         // se houver erro em SECTION
         if (cursor.error) {
-            std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+            std::cout << endl << "Line " << count.check_line (*file_name) << ":" << endl;
             // se secoes ja foram definidas, erro de tentativa de sobrecarregamento de secoes
             if ( cursor.full() ) {
                 std::cout << "syntactic error: section overflow" << endl;
@@ -691,7 +703,7 @@ class Analyze {
                 cursor.error = false;   // limpa erro para proxima avaliacao
             } // se nao houver erro, verificar se tipo ja foi declarado anteriormente
         } else if ( cursor.overflowed(*token) ) {
-            std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+            std::cout << endl << "Line " << count.check_line (*file_name) << ":" << endl;
             std::cout << "syntactic error: SECTION " << *token << " already exists" << endl;
         } // se houver outro token apos declaracao, erro
         multiple_arguments (file_name, tokenizer, token, "SECTION directive");
@@ -700,14 +712,14 @@ class Analyze {
     // analise: verifica se operacao esta fora da secao de texto
     void outside_text (string* file_name, string token) {
         if (cursor.placement != s_TEXT) {
-            std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+            std::cout << endl << "Line " << count.check_line (*file_name) << ":" << endl;
             std::cout << "semantic error: " << token << " operation outside SECTION TEXT" << endl;
         }
     }
     // analise: verifica se diretiva esta fora da secao de dados
     void outside_data (string* file_name, string token) {
         if (cursor.placement != s_DATA) {
-            std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+            std::cout << endl << "Line " << count.check_line (*file_name) << ":" << endl;
             std::cout << "semantic error: " << token << " directive outside SECTION DATA" << endl;
         }
     }
@@ -745,7 +757,7 @@ void process_opcode (string* file_name, istringstream* tokenizer, string* token,
     }
     // se linha acabou, erro
     else {
-        std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+        std::cout << endl << "Line " << count.check_line (*file_name) << ":" << endl;
         std::cout << "syntactic error: missing operand in " << operation << " instruction" << endl;
     }
 }
@@ -768,7 +780,7 @@ void process_copy (string* file_name, istringstream* tokenizer, string* token, A
         if (operands.size() == 1) {
             word->check_expression (file_name, operands[0], address);
             address++;
-            std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+            std::cout << endl << "Line " << count.check_line (*file_name) << ":" << endl;
             std::cout << "syntactic error: missing second operand in COPY operation" << endl;
         }
         // se houver mais de um operando, analisa e insere ambos na saida
@@ -781,7 +793,7 @@ void process_copy (string* file_name, istringstream* tokenizer, string* token, A
 
             // se houver sobrecarga de operandos, erro
             if (operands.size() > 2) {
-                std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+                std::cout << endl << "Line " << count.check_line (*file_name) << ":" << endl;
                 std::cout << "syntactic error: COPY operation receiving too many arguments" << endl;
                 overflow = 1;
             }
@@ -791,7 +803,7 @@ void process_copy (string* file_name, istringstream* tokenizer, string* token, A
         }
     }
     else { // se nao ha operandos, erro
-        std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+        std::cout << endl << "Line " << count.check_line (*file_name) << ":" << endl;
         std::cout << "syntactic error: missing operands in COPY instruction" << endl;
     }
 
@@ -813,13 +825,13 @@ void onepass (string* file_name) {
             token.pop_back();                   // ignora ':'
             if (symbol_table.search (token)) {  // procura rotulo na tabela de simbolos
                 if (symbol_table.def) {         // se achou e simbolo ja foi definido, erro
-                    std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+                    std::cout << endl << "Line " << count.check_line (*file_name) << ":" << endl;
                     std::cout << "semantic error: label \"" << token << "\" has already been declared" << endl;
                 } else {                                            // se achou, mas ainda nao foi definido
                     symbol_table.validate (token, address);         // define simbolo na tabela de simbolos
                     if (!tokenizer.eof() && (tokenizer >> token));  // se linha nao acabou, pega proximo token
                     else {                                          // se linha acabou, erro
-                        std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+                        std::cout << endl << "Line " << count.check_line (*file_name) << ":" << endl;
                         std::cout << "syntactic error: label \"" << token << "\" does not point to any memory addresses" << endl;
                     }
                 }
@@ -863,7 +875,7 @@ void onepass (string* file_name) {
                     } // verifica a existencia de operandos posteriores
                     word.multiple_arguments (file_name, &tokenizer, &token, "CONST directive");
                 } else {                    // caso contrario, erro
-                    std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+                    std::cout << endl << "Line " << count.check_line (*file_name) << ":" << endl;
                     std::cout << "syntactic error: missing constant in CONST statement" << endl;
                     objline.push_back(0);   // insere zero no lugar da constante
                     address++;              // incrementa endereco
@@ -973,7 +985,7 @@ void onepass (string* file_name) {
                 objline.push_back(14);
                 address++;
                 if (!tokenizer.eof() && (tokenizer >> token)) {
-                    std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+                    std::cout << endl << "Line " << count.check_line (*file_name) << ":" << endl;
                     std::cout << "syntactic error: STOP operation receiving unexpected arguments" << endl;
                     while (tokenizer >> token);
                 }
@@ -982,7 +994,7 @@ void onepass (string* file_name) {
             default:
                 // para qualquer operacao nao reconhecida, erro
                 if (invalid_token) {
-                    std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+                    std::cout << endl << "Line " << count.check_line (*file_name) << ":" << endl;
                     std::cout << "semantic error: " << token << " is an invalid instruction" << endl;
                 }
                 break;
@@ -1046,7 +1058,7 @@ void write_preprocessed_file (ofstream* pre_file, string* file_name) {
         std::cout << "syntactic error: code has missing SECTION TEXT" << endl;
     }
 
-    unsigned int km=0; while (km < outline.size()) {std::cout << outline[km] << " "; km++;}
+    // unsigned int km=0; while (km < outline.size()) {std::cout << outline[km] << " "; km++;}
 
     // pular quebras de linha iniciais
     while ((count.line_break(0)))
@@ -1076,7 +1088,10 @@ void write_preprocessed_file (ofstream* pre_file, string* file_name) {
             *pre_file << outline[i] << " ";
             if ((i+1) != outline.size()) {
                 do { i++; } while (((i+1) != outline.size()) && (count.line_break(i)));
-                if (count.line_break(i) && ((i+1) == outline.size())) break;
+                if (count.line_break(i) && ((i+1) == outline.size())) {
+                    count.insert_line (pre_file);                    
+                    break;
+                }
             } else {
                 count.insert_line (pre_file);
                 break;
@@ -1113,7 +1128,7 @@ void write_preprocessed_file (ofstream* pre_file, string* file_name) {
         }
     }
 
-    km=0; while (km < t_count.size()) {std::cout << t_count[km].pre_line << " = " << t_count[km].asm_line << endl; km++;}
+    // km=0; while (km < t_count.size()) {std::cout << t_count[km].pre_line << " = " << t_count[km].asm_line << endl; km++;}
 
     cursor.clear();         // limpa o cursor para a passagem unica
     outline.clear();        // ao final, limpar linha de saida e
@@ -1186,7 +1201,7 @@ void preprocessing (string* file_name) {
 
                 // se diretiva EQU aparece apos secoes declaradas, erro
                 if ( cursor.got_in() ) {
-                    std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+                    std::cout << endl << "Line " << count.check_line (*file_name) << ":" << endl;
                     std::cout << "semantic error: EQU directive after section declaration" << endl;
                 }
 
@@ -1197,12 +1212,12 @@ void preprocessing (string* file_name) {
                         if (!tokenizer.eof() && (tokenizer >> token) && !clear_comment (&tokenizer, &token, false)) {
                             word.check_number (file_name, token);           // analisa validade do numero
                             if (ident_table.search (word.content()) ) {     // se identificador ja estava na tabela, erro
-                                std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+                                std::cout << endl << "Line " << count.check_line (*file_name) << ":" << endl;
                                 std::cout << "semantic error: label \"" << word.content() << "\" has already been declared" << endl;
                             } else                                          // se identificador nao esta na tabela
                                 ident_table.insert (word.content(), token); // insere identificador na tabela
                         } else {                                            // se linha acabou, erro
-                            std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+                            std::cout << endl << "Line " << count.check_line (*file_name) << ":" << endl;
                             std::cout << "syntactic error: missing constant in EQU statement" << endl;
                         }
                     } else while (tokenizer >> token);                  // se identificador for invalido, ignorar linha
@@ -1212,14 +1227,14 @@ void preprocessing (string* file_name) {
 
                 // se identificador estiver vazio, erro na diretiva EQU
                 else {
-                    std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+                    std::cout << endl << "Line " << count.check_line (*file_name) << ":" << endl;
                     std::cout << "syntactic error: label for EQU directive does not exist" << endl;
                     clear_EQU_line (&tokenizer, &token, word.empty());  // remove diretiva EQU da linha de saida
                 }
 
                 // se linha nao acabou, captura proximo token, se token for comentario, pula linha, se nao erro
                 if (!tokenizer.eof() && (tokenizer >> token) && !clear_comment (&tokenizer, &token, false)) {
-                    std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+                    std::cout << endl << "Line " << count.check_line (*file_name) << ":" << endl;
                     std::cout << "syntactic error: EQU directive receiving too many arguments" << endl;
                     while (tokenizer >> token);     // ignora o restante da linha
                 }
@@ -1231,14 +1246,14 @@ void preprocessing (string* file_name) {
                 if (!tokenizer.eof() && (tokenizer >> token) && !clear_comment (&tokenizer, &token, false))
                     word.check_token (file_name, token);    // se nao for comentario, analisa token
                 else {                                      // se nao ha identificador ou constante, erro
-                    std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+                    std::cout << endl << "Line " << count.check_line (*file_name) << ":" << endl;
                     std::cout << "syntactic error: missing argument in IF statement" << endl;
                     outline.pop_back();
                 }
 
                 // se linha nao acabou, pega proximo token, se token for comentario, pula linha, se nao erro
                 if (!tokenizer.eof() && (tokenizer >> token) && !clear_comment (&tokenizer, &token, false)) {
-                    std::cout << endl << "Line " << line_number << " of [" << *file_name << "]:" << endl;
+                    std::cout << endl << "Line " << count.check_line (*file_name) << ":" << endl;
                     std::cout << "syntactic error: IF directive has too many arguments" << endl;
                     while (tokenizer >> token);     // ignora o restante da linha
                 }
@@ -1291,16 +1306,16 @@ int main (int argc, char *argv[]) {
         write_preprocessed_file (&out_file, &file_name);
         out_file.close();
 
-        // file.open (pre_name);
-        // while ( !file.eof() ) {     // enquanto arquivo nao acabou
-        //     getline (file, line);   // le linha do codigo pre-processado
-        //     onepass (&pre_name);    // realiza primeira passagem
-        // } file.close();
+        file.open (pre_name);
+        while ( !file.eof() ) {     // enquanto arquivo nao acabou
+            getline (file, line);   // le linha do codigo pre-processado
+            onepass (&pre_name);    // realiza primeira passagem
+        } file.close();
 
-        // // escreve o codigo objeto
-        // out_file.open (obj_name);
-        // write_object_file (&out_file, &pre_name);
-        // out_file.close();
+        // escreve o codigo objeto
+        out_file.open (obj_name);
+        write_object_file (&out_file, &file_name);
+        out_file.close();
     }
     else std::cout << endl << "ERROR: File not found!" << endl;
 
