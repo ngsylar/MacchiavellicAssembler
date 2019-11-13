@@ -6,11 +6,15 @@
 using namespace std;
 
 // ----------------------------------------------------------------------------------------------------
-//    CONSTANTES GLOBAIS TIPO ASCII
+//    CONSTANTES
 // ----------------------------------------------------------------------------------------------------
 
 #define ASCII_LINEFEED 0x0A
 #define ASCII_SPACE 0x20
+#define ASCII_DOT 0x2E
+
+#define SOURCE_A_NAME SOURCE_NAME[0]
+#define SOURCE_B_NAME SOURCE_NAME[1]
 
 // ----------------------------------------------------------------------------------------------------
 //    VARIAVEIS GLOBAIS
@@ -25,7 +29,7 @@ static string* SOURCE_NAME;
 
 // recebe nome dos arquivos de entrada
 void allocate_source_filenames (int argc, char *argv[]) {
-    string source_A, source_B;
+    string source_A, source_B, extension;
 
     if (argc > 1) {             // se inicio recebeu mais de um argumento
         source_A = argv[1];     // nome do primeiro modulo recebe segundo argumento
@@ -50,7 +54,33 @@ void allocate_source_filenames (int argc, char *argv[]) {
         }
     } setbuf (stdin, NULL);             // limpar demais argumentos, se existirem
 
-    // nota: conferir se nomes tem extensao .asm
+    // confere extensao dos arquivos
+    try {
+        for (int i = source_A.size() - 1; i >= 0; i--) {
+            extension.insert (0, 1, source_A[i]);   // pega caracteres do final do nome do modulo A
+            if (source_A[i] == ASCII_DOT) {         // se achar ponto
+                if (extension == ".asm") {          // se extensao for .asm
+                    if (source_B.empty()) {         // se nao existe modulo B
+                        throw 0;                    // nao ha erro
+                    } else {                                        // se existe modulo B
+                        extension.clear();
+                        for (int j = source_B.size() - 1; j >= 0; j--) {
+                            extension.insert (0, 1, source_B[j]);   // pega caracteres do final
+                            if (source_B[j] == ASCII_DOT) {         // se achar ponto
+                                if (extension == ".asm") throw 0;   // se extensao for .asm, nao ha erro
+                                else throw 1;                       // se extensao for diferente, erro
+                            }
+                        } throw 1;                                  // se nao achou ponto, erro
+                    }
+                } else throw 1;                     // se extensao for diferente, erro
+            }
+        } throw 1;                                  // se nao achou ponto, erro
+    } catch (int invalid_extension) {
+        if (invalid_extension) {
+            cout << endl << "ERRO: formato de arquivo invalido!" << endl;
+            return;
+        }
+    }
 
     if (source_B.empty()) {             // se nao existe modulo B
         SOURCE_NAME = new string;       // aloca um espaco de memoria para nome de arquivo
@@ -59,8 +89,8 @@ void allocate_source_filenames (int argc, char *argv[]) {
     }
     else {                              // se existe modulo B
         SOURCE_NAME = new string[2];    // aloca dois espacos de memoria para nome de arquivo
-        SOURCE_NAME[0] = source_A;      // ponteiro recebe nome dos modulos A e B
-        SOURCE_NAME[1] = source_B;
+        SOURCE_A_NAME = source_A;       // ponteiro recebe nome dos modulos A e B
+        SOURCE_B_NAME = source_B;
         NUMBER_OF_FILES = 2;            // define numero de arquivos igual a dois
     }
 }
@@ -69,7 +99,7 @@ void allocate_source_filenames (int argc, char *argv[]) {
 void deallocate_source_filenames () {
     if (NUMBER_OF_FILES == 2)
         delete[] SOURCE_NAME;
-    else
+    else if (NUMBER_OF_FILES == 1)
         delete SOURCE_NAME;
 }
 
