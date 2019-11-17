@@ -5,19 +5,6 @@
 #ifndef _H_PREPROCESSING_
 #define _H_PREPROCESSING_
 
-// biblioteca
-#include <vector>
-#include <sstream>
-using namespace std;
-
-// constantes
-#define newline "\n"
-
-// variaveis
-static string input_line;
-static vector<string> output_line;
-static int line_number;
-
 // inicia o pre-processamento
 void preprocessing () {
     istringstream tokenizer {input_line};   // decompositor de linha
@@ -32,6 +19,7 @@ void preprocessing () {
             case D_SECTION:
                 tokenizer >> token;
                 output_line.push_back(token);
+                output_line.push_back(newline);
                 return;
             default: break;
         }

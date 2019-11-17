@@ -1,13 +1,12 @@
 // ----------------------------------------------------------------------------------------------------
-//    ARQUIVOS DE TEXTO
+//    NOMES DE ARQUIVOS
 // ----------------------------------------------------------------------------------------------------
 
-#ifndef _H_FILES_
-#define _H_FILES_
+#ifndef _H_FILENAMES_
+#define _H_FILENAMES_
 
 // bibliotecas
 #include <iostream>
-using namespace std;
 
 // constantes tipo ascii
 #define ASCII_LINEFEED 0x0A

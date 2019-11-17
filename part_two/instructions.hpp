@@ -7,7 +7,6 @@
 
 // bibliotecas
 #include <map>
-using namespace std;
 
 // definicao de opcodes e diretivas
 enum E_OPCODE {ADD=1, SUB, MULT, DIV, JMP, JMPN, JMPP, JMPZ, COPY, LOAD, STORE, INPUT, OUTPUT, STOP};
