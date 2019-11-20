@@ -15,9 +15,18 @@ void assemble () {
         while ( !input_file.eof() ) {                   // enquanto arquivo nao acabou
             getline (input_file, input_line);           // le linha do codigo fonte
             for (auto & c: input_line) c = toupper(c);  // retira sensibilidade ao caso
-            preprocessing();                            // realiza o pre-processamento
-        } input_file.close();
+            if (!preprocessing (&SOURCE_A_NAME))        // realiza o pre-processamento
+                break;                                  // diretiva END termina pre-processamento
+        } input_file.close();                           // fecha arquivo fonte ao final do pre-processamento
+
+        // ofstream output_file (PREP_A_NAME);
+        // write_preprocessed_file (&output_file);
+        // output_file.close();
+
+        // nota: essa funcao eh para 2 modulos
+        check_directive_END (&SOURCE_A_NAME);
     }
+    else cout << endl << "ERRO: arquivo nao encontrado!" << endl;
 }
 
 // programa principal
@@ -30,7 +39,7 @@ int main (int argc, char *argv[]) {
         assemble();
     } else return 0;
 
-    cout << output_line.size() << endl;
-    for (int i=0; i < output_line.size(); i++) cout << output_line[i];
+    cout << endl;
+    for (unsigned int i=0; i < output_line.size(); i++) cout << output_line[i] << " ";
     return 0;
 }
