@@ -11,16 +11,70 @@ void check_directive_END (string *FILE_NAME) {
         error_handling (FILE_NAME, NULL, 3);
 }
 
+// move SECTION DATA para baixo de SECTION TEXT
+int move_section_DATA (unsigned int i) {    
+    output_line[i] = "SECTION DATA";
+
+    while (i < output_line.size()) {
+        output_line.push_back ( output_line[i] );
+
+        if (output_line[i+1] != "SECTION") {
+            i++;
+        } else {
+            if (output_line.back() == newline)
+                output_line.pop_back();
+            break;
+        }
+    }
+    return i;
+}
+
+// escreve o codigo pre-processado
 void write_preprocessed_file (ofstream *output_file) {
+    bool text_sign = false;     // sinaliza se escreveu SECTION TEXT
+    bool moved_data = false;    // sinaliza se moveu SECTION DATA
+
+    for (unsigned int i=0; i < output_line.size(); i++) {
+        switch ( DIRECTIVE[ output_line[i] ] ) {
+
+            case D_SECTION:
+                if (!text_sign) switch ( SECTION[ output_line[++i] ] ) {
+
+                    case S_TEXT:
+                        *output_file << "SECTION TEXT";
+                        text_sign = true;
+                        break;
+
+                    case S_DATA:
+                        i = move_section_DATA (i);
+                        moved_data = true;
+                        break;
+
+                    default: break;
+                } else
+                    *output_file << output_line[i] << " ";
+                break;
+
+            default:
+                if (output_line[i] == newline) {
+                    *output_file << newline;
+                } else {
+                    *output_file << output_line[i];
+                    if ((i+1 < output_line.size()) && (output_line[i+1] != newline))
+                        *output_file << " ";
+                } break;
+        }
+    }
 }
 
 // remove comentarios
 int clear_comment (string* token) {
-    if (token->front() == ';') {
-        if (line_number != 1)                   // se leitura nao estiver na primeira linha do codigo
-            output_line.push_back (newline);    // insere quebra de linha na linha de saida
-        return 1;                               // retorna "achou comentario"
-    } return 0;                                 // retorna "nao achou comentario"
+    if (token->front() == ';') {    // se token for comentario
+        // se nao estiver na primeira linha e nao houver quebra de linha precedente, insere qubra de linha
+        if ((line_number != 1) && (output_line.back() != newline))
+            output_line.push_back (newline);
+        return 1;                   // retorna "achou comentario"
+    } return 0;                     // retorna "nao achou comentario"
 }
 
 // inicia o pre-processamento
@@ -81,6 +135,7 @@ int preprocessing (string *FILE_NAME) {
                         error_handling (FILE_NAME, NULL, 4);    // erro
                     return 0;                                   // terminar pre-processamento
                 }
+                output_line.push_back (newline);                // insere quebra de linha na linha de saida
                 return 1;                                       // pular para proxima linha
 
             case D_PUBLIC:                                  // DIRETIVA PUBLIC

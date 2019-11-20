@@ -19,9 +19,9 @@ void assemble () {
                 break;                                  // diretiva END termina pre-processamento
         } input_file.close();                           // fecha arquivo fonte ao final do pre-processamento
 
-        // ofstream output_file (PREP_A_NAME);
-        // write_preprocessed_file (&output_file);
-        // output_file.close();
+        ofstream output_file (PREP_A_NAME);
+        write_preprocessed_file (&output_file);
+        output_file.close();
 
         // nota: essa funcao eh para 2 modulos
         check_directive_END (&SOURCE_A_NAME);
