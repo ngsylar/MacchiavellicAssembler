@@ -63,8 +63,9 @@ void write_preprocessed_file (ofstream *output_file) {
                         break;
 
                     default: break;
-                } else write_token (output_file, i);
-                break;
+                } else {
+                    write_token (output_file, i);
+                } break;
 
             default:
                 if (output_line[i] == newline)
