@@ -36,7 +36,7 @@ void assign_source_filenames (int argc, char *argv[]) {
             SOURCE_B_NAME = argv[2];    // nome do terceiro modulo recebe terceiro argumento
         }
     } else {                                        // se inicio so recebeu um argumento
-        SOURCE_A_NAME = "used_tests\\mod_u_test1.asm";
+        SOURCE_A_NAME = "used_tests\\mod_u_test2.asm";
         // cout << "Insira o nome dos arquivos: ";     // pede para usuario inserir nome dos arquivos
         // cin >> SOURCE_A_NAME;                       // modulo A recebe nome do buffer
 

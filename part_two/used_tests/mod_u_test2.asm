@@ -1,4 +1,4 @@
-;slvlsjn
+  ;         slvlsjn
 
 
 
@@ -8,17 +8,7 @@ sdsdcs
                   ; djcsmclsj ljcsc
 MOD_A: BEGIN    ;dwkjcnkdcn ddd dsc
 
-SECTION DATA
-	N:                  
 
-
-
-
-	ONE:    ; kdfcjsndkc sdcsccs
-	
-	
-	
-	ccc:       vvv:            CONST 1
 
 SECTION TEXT
 	MOD_B: EXTERN
@@ -37,6 +27,20 @@ SECTION TEXT
 	FIM: OUTPUT N
 	STOP
 
+
+
+SECTION DATA
+	N:                  
+
+
+
+
+	ONE:    ; kdfcjsndkc sdcsccs
+	
+	
+	
+	ccc:       vvv:            CONST 1
+
 END
 
 
@@ -44,6 +48,7 @@ END
 
 
 wcdwcsd
+
 
 
 

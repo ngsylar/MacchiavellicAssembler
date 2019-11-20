@@ -39,7 +39,5 @@ int main (int argc, char *argv[]) {
         assemble();
     } else return 0;
 
-    cout << endl;
-    for (unsigned int i=0; i < output_line.size(); i++) cout << output_line[i] << " ";
     return 0;
 }

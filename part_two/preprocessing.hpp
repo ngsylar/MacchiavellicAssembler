@@ -14,6 +14,7 @@ void check_directive_END (string *FILE_NAME) {
 // move SECTION DATA para baixo de SECTION TEXT
 int move_section_DATA (unsigned int i) {    
     output_line[i] = "SECTION DATA";
+    output_line.push_back (newline);
 
     while (i < output_line.size()) {
         output_line.push_back ( output_line[i] );
@@ -29,10 +30,21 @@ int move_section_DATA (unsigned int i) {
     return i;
 }
 
+// escreve um token por vez
+void write_token (ofstream *output_file, int i) {
+    *output_file << output_line[i++];
+    if ((i < output_line.size()) && (output_line[i] != newline))
+        *output_file << " ";
+}
+
 // escreve o codigo pre-processado
 void write_preprocessed_file (ofstream *output_file) {
     bool text_sign = false;     // sinaliza se escreveu SECTION TEXT
-    bool moved_data = false;    // sinaliza se moveu SECTION DATA
+    // bool moved_data = false;    // sinaliza se moveu SECTION DATA
+
+    while (output_line.back() == newline) {
+        output_line.pop_back();
+    }
 
     for (unsigned int i=0; i < output_line.size(); i++) {
         switch ( DIRECTIVE[ output_line[i] ] ) {
@@ -47,22 +59,19 @@ void write_preprocessed_file (ofstream *output_file) {
 
                     case S_DATA:
                         i = move_section_DATA (i);
-                        moved_data = true;
+                        // moved_data = true;
                         break;
 
                     default: break;
-                } else
-                    *output_file << output_line[i] << " ";
+                } else write_token (output_file, i);
                 break;
 
             default:
-                if (output_line[i] == newline) {
+                if (output_line[i] == newline)
                     *output_file << newline;
-                } else {
-                    *output_file << output_line[i];
-                    if ((i+1 < output_line.size()) && (output_line[i+1] != newline))
-                        *output_file << " ";
-                } break;
+                else
+                    write_token (output_file, i);
+                break;
         }
     }
 }
