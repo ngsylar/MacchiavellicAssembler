@@ -24,10 +24,14 @@ static vector<string> previous_label;
 // classe para marcar posicoes no processo de analise
 class Marker {
     public:
-    int d_begin_count = 0;
-    int d_end_count = 0;
-};
-static Marker cursor;
+    int begin_count = 0;
+    int end_count = 0;
+
+    void clear () {
+        begin_count = 0;
+        end_count = 0;
+    }
+}; static Marker cursor;
 
 // tratamento de erros
 void error_handling (string *FILE_NAME, string token, int error_id) {

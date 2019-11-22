@@ -36,7 +36,8 @@ void assign_source_filenames (int argc, char *argv[]) {
             SOURCE_B_NAME = argv[2];    // nome do terceiro modulo recebe terceiro argumento
         }
     } else {                                        // se inicio so recebeu um argumento
-        SOURCE_A_NAME = "used_tests\\mod_u_test3.asm";
+        SOURCE_A_NAME = "used_tests\\test1_A.asm";
+        SOURCE_B_NAME = "used_tests\\test1_B.asm";
         // cout << "Insira o nome dos arquivos: ";     // pede para usuario inserir nome dos arquivos
         // cin >> SOURCE_A_NAME;                       // modulo A recebe nome do buffer
 
@@ -90,14 +91,17 @@ void assign_source_filenames (int argc, char *argv[]) {
 // atribui nomes dos arquivos de saida
 void assign_output_filenames () {
     // modulo A
-    PREP_A_NAME.append(SOURCE_A_NAME, 0, SOURCE_A_NAME.size()-3);
-    OBJECT_A_NAME.append(PREP_A_NAME);
+    PREP_A_NAME.append (SOURCE_A_NAME, 0, SOURCE_A_NAME.size()-3);
+    OBJECT_A_NAME.append (PREP_A_NAME);
     PREP_A_NAME.append("pre");
     OBJECT_A_NAME.append("obj");
 
-    // if (NUMBER_OF_FILES == 2) {
-    // }
-
+    if (NUMBER_OF_FILES == 2) {
+        PREP_B_NAME.append (SOURCE_B_NAME, 0, SOURCE_B_NAME.size()-3);
+        OBJECT_B_NAME.append (PREP_B_NAME);
+        PREP_B_NAME.append("pre");
+        OBJECT_B_NAME.append("obj");
+    }
     // cout << SOURCE_A_NAME << " " << PREP_A_NAME << " " << OBJECT_A_NAME << " ";
 }
 

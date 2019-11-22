@@ -1,4 +1,16 @@
+; crknjkrcn
+dffs gjsvjg           jnkj
+ndkjdn: gdkhbs
+jndkjdn:
 MOD_A: BEGIN
+SECTION DATA
+	N: SPACE
+	ONE: CONST 1
+
+
+	; kdjnsfkj ssds
+
+
 SECTION TEXT
 	MOD_B: EXTERN
 	PUBLIC FAT
@@ -9,8 +21,9 @@ SECTION TEXT
 	JMPZ FIM
 	JMP MOD_B
 	FIM: OUTPUT N
+
 	STOP
-SECTION DATA
-	N: SPACE
-	ONE: CONST 1
 END
+
+kmdllkd
+; rscsrc
