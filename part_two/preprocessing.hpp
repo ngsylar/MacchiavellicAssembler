@@ -106,17 +106,16 @@ int clear_comment (string* token) {
     } return 0;                     // retorna "nao achou comentario"
 }
 
-// 
+// verifica a existencia de rotulo nas linhas anteriores
 int previous_label_is_not_empty (string token) {
-    if ( !previous_label.empty() ) {
-        if (NUMBER_OF_FILES == 1)
-            return 1;
-        else if (cursor.begin_count > 0)
-            return 1;
-        else if (token != "BEGIN")
-            previous_label.clear();
-        else return 1;
-    } return 0;
+    if ( !previous_label.empty() ) {    // se houver rotulo na linha anterior
+        // se arquivo for unico ou diretiva BEGIN ja foi declarada
+        if ((NUMBER_OF_FILES == 1) || (cursor.begin_count > 0))
+            return 1;                   // retorna "achou rotulo"
+        else if (token != "BEGIN")      // caso contrario, se token atual for diferente de BEGIN
+            previous_label.clear();     // limpa rotulos encontrados e retorna "nao achou rotulo"
+        else return 1;                  // se token atual for diretiva BEGIN, retorna "achou rotulo"
+    } return 0;                         // se nao houver rotulo na linha anterior, retorna "nao achou rotulo"
 }
 
 // inicia o pre-processamento
@@ -161,7 +160,7 @@ int line_preprocessing (string *FILE_NAME) {
                     error_handling (FILE_NAME, token, 1);       // erro
                 }
                 else {                                          // se ha mais de um modulo
-                    output_line.push_back(token);               // 
+                    output_line.push_back(token);               // escreve diretiva BEGIN na linha de saida
                     cursor.begin_count++;                       // incrementa contagem de diretiva de modulo
                     if (cursor.begin_count > 1)                 // se houver redeclaracao de diretiva
                         error_handling (FILE_NAME, token, 2);   // erro
