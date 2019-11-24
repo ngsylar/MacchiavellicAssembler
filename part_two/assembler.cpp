@@ -43,5 +43,6 @@ int main (int argc, char *argv[]) {
         assemble();
     } else return 0;
 
+    cout << endl << "ident: " << sizeof(Table_row) << " ; table: " << sizeof(Table) << endl;
     return 0;
 }

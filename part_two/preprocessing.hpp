@@ -37,10 +37,10 @@ void write_token (ofstream *output_file, unsigned int i) {
 }
 
 // escreve o codigo pre-processado
-void write_preprocessed_file (ofstream *output_file, string *PREP_M_NAME) {
+void write_preprocessed_file (ofstream *output_file, string *FILE_NAME) {
     bool text_sign = false;             // sinaliza se escreveu SECTION TEXT
     bool moved_data = false;            // sinaliza se moveu SECTION DATA
-    output_file->open (*PREP_M_NAME);
+    output_file->open (*FILE_NAME);
 
     // retira quebras de linha do inicio e do final do arquivo
     while (output_line.front() == newline)
@@ -94,6 +94,7 @@ void write_preprocessed_file (ofstream *output_file, string *PREP_M_NAME) {
     output_file->close();
     output_line.clear();
     cursor.clear();
+    line_number = 0;
 }
 
 // remove comentarios
