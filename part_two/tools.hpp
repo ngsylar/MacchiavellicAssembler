@@ -37,93 +37,136 @@ class Marker {
 
 // classes para criacao de tabelas de simbolos
 class Table_row {
-    private:
+    public:
         string label;           // rotulo do simbolo
         int value = -1;         // endereco do simbolo
         bool defined = false;   // indica se endereco do simbolo foi definido
+        bool shared = false;    // indica se o simbolo eh publico
         bool external = false;  // indica se o simbolo eh externo
         vector<int> list;       // lista de enderecos em que o rotulo eh chamado
-    public: friend class Table;
+
+    // reinicia simbolo
+    void clear () {
+        label.clear();
+        value = -1;
+        defined = false;
+        shared = false;
+        external = false;
+        list.clear();
+    }
+    friend class Table;
 };
 class Table {
     public:
+        int current_i;
+        Table_row current;
         vector<Table_row> t_body;
-    
+
     // procura simbolo na tabela de simbolos
     int search (string label, unsigned int *i) {
         for (*i=0; *i < t_body.size(); *i++) {
             if (label == t_body[*i].label)
                 return 1;
         } return 0;
+    } int search (string label) {
+        unsigned int i = 0;
+        if (search (label, &i)) {
+            current = t_body[i];
+            current_i = i;
+            return 1;
+        } return 0;
     }
 
+    // insere valor na lista de enderecos do simbolo atual
+    void insert (int address) {
+        t_body[current_i].list.push_back(address);
+    }
+
+    // insere um simbolo publico na tabela
+    void insert_public (string label) {
+        unsigned int i = 0;
+        if (search (label, &i) == 1) {      // se simbolo ja estiver na tabela
+            if (!t_body[i].shared)
+                t_body[i].shared = true;    // declara simbolo como publico
+        }
+        else {                              // se simbolo nao esta na tabela
+            current.clear();                // cria nova linha
+            current.label = label;          // declara rotulo do simbolo
+            current.shared = true;          // marca como publico
+            t_body.push_back (current);     // insere simbolo no final da tabela
+        }
+    }
     // insere simbolo externo na tabela
     void insert_external (string label) {
-        Table_row aux_row;
         unsigned int i = 0;
-        aux_row.label = label;
-        aux_row.external = true;
-        t_body.push_back (aux_row);
+        if (search (label, &i) == 1) {      // se simbolo ja estiver na tabela
+            if (!t_body[i].external)
+                t_body[i].external = true;  // declara simbolo como externo
+        }
+        else {                              // se simbolo nao esta na tabela
+            current.clear();                // cria nova linha
+            current.label = label;          // declara rotulo do simbolo
+            current.external = true;        // marca como externo
+            t_body.push_back (current);     // insere simbolo no final da tabela;
+        }
     }
-
     // insere simbolo definido ou externo na tabela
-    int insert_defined (string label, int value) {
-        Table_row aux_row;
+    int insert_defined (string label, int value) {        
         unsigned int i = 0;
-        aux_row.label = label;
-        aux_row.value = value;
-        aux_row.defined = true;
-
         if (search (label, &i) == 1) {      // se nao, se simbolo ja estiver na tabela
-            t_body[i] = aux_row;            // insere novo valor na tabela
+            t_body[i].value = value;        // insere novo valor na tabela
+            t_body[i].defined = true;       // marca simbolo como definido
             return 1;                       // retorna "atualizar linhas anteriores"
-        } else                              // se simbolo ainda nao estiver na tabela
-            t_body.push_back (aux_row);     // insere simbolo no final da tabela
-        return 0;
+        }
+        else {                              // se simbolo ainda nao estiver na tabela
+            current.clear();                // cria nova linha
+            current.label = label;          // declara rotulo do simbolo
+            current.value = value;          // insere valor definido
+            current.defined = true;         // marca como definido
+            t_body.push_back (current);     // insere simbolo no final da tabela
+        } return 0;
     }
 
-    // insere um simbolo chamado na tabela
-    int insert_called (string label, int address) {
-        Table_row aux_row;
-        unsigned int i = 0;
-        aux_row.label = label;
-        aux_row.list.push_back (address);
+    // insere um simbolo nao definido na tabela
+    void insert_undefined (string label, int address) {
+        current.clear();                    // cria nova linha
+        current.label = label;              // declara rotulo do simbolo
+        current.list.push_back (address);   // insere endereco atual na lista de enderecos do simbolo
+        t_body.push_back (current);         // insere linha no final da tabela
+    }
 
+    // insere ou atualiza um simbolo na tabela
+    int insert_called (string label, int address) {
+        unsigned int i = 0;
         if (search (label, &i) == 1) {                  // se simbolo ja estiver na tabela
             if (t_body[i].defined)                      // se simbolo for definido
                 return 1;                               // retorna "escrever valor definido no arquivo de saida"
             else                                        // se simbolo for indefinido
                 t_body[i].list.push_back (address);     // insere endereco atual na lista de enderecos do simbolo
-        } else                              // se simbolo nao esta na tabela
-            t_body.push_back (aux_row);     // insere simbolo no final da tabela
-        return 0;
+        } else {                                // se simbolo nao esta na tabela
+            insert_undefined(label, address);   // insere simbolo no final da tabela
+        } return 0;
     }
 }; static Table symbol;
 
-// tratamento de erros
-void error_handling (string *FILE_NAME, string token, int error_id) {
-    switch (error_id) {
-        case 1:
-            cout << endl << "Linha " << line_number << " de [ " << *FILE_NAME << " ]:" << endl;
-            cout << "Erro: existencia de diretiva " << token << " em programa unico" << endl;
-            break;
-        case 2:
-            cout << endl << "Linha " << line_number << " de [ " << *FILE_NAME << " ]:" << endl;
-            cout << "Erro: multiplas declaracoes de diretiva " << token << endl;
-            break;
-        case 3:
-            cout << endl << "Linha " << line_number << " de [ " << *FILE_NAME << " ]:" << endl;
-            cout << "Erro: diretiva END nao encontrada" << endl;
-            break;
-        case 4:
-            cout << endl << "Linha " << line_number << " de [ " << *FILE_NAME << " ]:" << endl;
-            cout << "Erro: declaracao de diretiva END sem declaracao previa de diretiva BEGIN" << endl;
-            break; 
-        default: break;
-    }
+// transforma string com representacao decimal ou hexadecimal em inteiro
+int hdstoi (string token) {
+    int number;                                     // valor de retorno
+
+    if ((token[0] == '0') && (token[1] == 'x')) {   // se for hexadecimal
+        char stoc[ token.size() ];                  // cria array de char com tamanho da string
+        strcpy(stoc, token.c_str());                // copia string para o array de char
+        number = strtol(stoc, NULL, 16);            // numero recebe array convertido em inteiro
+    } else                                          // se for decimal
+        number = stoi(token);                       // numero recebe string convertida em inteiro
+
+    return number;                                  // retorna numero
 }
 
-// passagens do montador
+// analise de codigo
+#include "analysis.hpp"
+
+// sintese de codigo
 #include "preprocessing.hpp"
 #include "singlepass.hpp"
 
