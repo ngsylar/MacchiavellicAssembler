@@ -76,31 +76,31 @@ void line_singlepass () {
         // se token for diretiva
         switch ( DIRECTIVE[token] ) {
 
-            case D_SPACE:
+            case D_SPACE:                       // DIRETIVA SPACE
                 if ((tokenizer >> token) && word.check_number (token, false)) {
-                    for (int i=0; i < word.number; i++)
-                        output_code.push_back(0);
-                    program_address += word.number;
-                } else {
-                    output_code.push_back(0);
-                    program_address++;
+                    for (int i=0; i < word.number; i++)     // pega proximo token e extrai o valor
+                        output_code.push_back(0);           // reserva "valor" espacos na linha de saida
+                    program_address += word.number;         // incrementa endereco em "valor" posicoes
+                } else {                        // se nao foram passados argumentos
+                    output_code.push_back(0);   // reserva apenas um espaco
+                    program_address++;          // incrementa endereco
                 } break;
 
-            case D_CONST:
+            case D_CONST:                       // DIRETIVA CONST   
                 if ((tokenizer >> token) && word.check_number (token, true)) {
-                    output_code.push_back (word.number);
-                } else {
-                    output_code.push_back(0);
-                } program_address++;
+                    output_code.push_back (word.number);    // pega proximo token e escreve o valor na linha de saida
+                } else {                        // em caso de erro
+                    output_code.push_back(0);   // escreve zero na linha de saida
+                } program_address++;            // incrementa endereco
                 break;
 
-            case D_PUBLIC:
-                if (tokenizer >> token)
-                    symbol.insert_public (token);
+            case D_PUBLIC:                          // DIRETIVA PUBLIC
+                if (tokenizer >> token)             // pega protimo token
+                    symbol.insert_public (token);   // insere na tabela de simbolos como publico
                 break;
 
-            default:
-                not_directive = true;
+            default:                    // caso token nao seja diretiva
+                not_directive = true;   // vai para processamento de operacoes
                 break;
         }
 
@@ -158,14 +158,12 @@ void line_singlepass () {
 
             // fim do programa
             case STOP:
-                output_code.push_back(14);
-                program_address++;
+                output_code.push_back(14);  // insere codigo da operacao na linha de saida
+                program_address++;          // incrementa endereco
                 break;
 
             default: break;
-        }
-
-        not_directive = false;
+        } not_directive = false;
     }
 }
 #endif

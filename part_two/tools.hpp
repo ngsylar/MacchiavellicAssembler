@@ -6,20 +6,20 @@
 #define _H_TOOLS_
 
 // bibliotecas
-#include <fstream>
-#include <sstream>
-#include <cstring>
-#include <vector>
+#include <fstream>      // arquivos
+#include <sstream>      // leitura de arquivos e strings
+#include <cstring>      // strings
+#include <vector>       // vetores
 
 // constantes
 #define newline "\n"
 
 // variaveis
-static string input_line;
-static vector<string> output_line;
-static vector<int> output_code;
-static int line_number = 0;
-static int program_address = 0;
+static string input_line;               // linha lida de um arquivo de entrada
+static vector<string> output_line;      // linha de saida para arquivo pre-processado
+static vector<int> output_code;         // linha de saida para arquivo objeto
+static int line_number = 0;             // contador de linhas
+static int program_address = 0;         // contador de enderecos
 
 // variaveis temporarias
 static vector<string> previous_label;
@@ -27,8 +27,8 @@ static vector<string> previous_label;
 // classe para marcar posicoes no processo de analise
 class Marker {
     public:
-    int begin_count = 0;
-    int end_count = 0;
+    int begin_count = 0;    // marca o numero de diretivas BEGIN achado em um arquivo
+    int end_count = 0;      // marca se achou uma diretiva END em um arquivo
 
     void clear () {
         begin_count = 0;
@@ -59,19 +59,19 @@ class Table_row {
 };
 class Table {
     public:
-        int current_i;
-        Table_row current;
-        vector<Table_row> t_body;
+        int current_i;              // indice de uma linha na tabela
+        Table_row current;          // elemento salvo no indice
+        vector<Table_row> t_body;   // corpo completo da tabela
 
     // procura simbolo na tabela de simbolos
     int search (string label) {
-        for (unsigned int i=0; i < t_body.size(); i++) {
-            if (label == t_body[i].label) {
-                current = t_body[i];
-                current_i = i;
-                return 1;
-            }
-        } return 0;
+        for (unsigned int i=0; i < t_body.size(); i++) {    // para cada simbolo na tabela
+            if (label == t_body[i].label) {                 // se rotulo na tabela for igual a rotulo recebido
+                current = t_body[i];                        // linha auxiliar recebe simbolo encontrado
+                current_i = i;                              // guarda o indice da linha
+                return 1;                                   // retorna "achou"
+            }           // se ao final da busca, nenhum simbolo com rotulo igual foi encontrado
+        } return 0;     // retorna "nao achou"
     }
 
     // insere valor na lista de enderecos do simbolo atual

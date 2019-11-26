@@ -156,6 +156,7 @@ int line_preprocessing (string *FILE_NAME) {
 
         // se token for diretiva
         switch ( DIRECTIVE[token] ) {
+
             case D_BEGIN:                                       // DIRETIVA BEGIN
                 if (NUMBER_OF_FILES == 1) {                     // se ha apenas um modulo
                     error_handling (FILE_NAME, token, 1);       // erro
