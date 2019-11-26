@@ -5,9 +5,6 @@
 #ifndef _H_ANALYSIS_
 #define _H_ANALYSIS_
 
-// bibliotecas
-#include <cstring>
-
 // mensagens para tratamento de erros
 void error_handling (string *FILE_NAME, string token, int error_id) {
     switch (error_id) {
@@ -85,8 +82,8 @@ class Analyze {
         vector<string> tokens;
         int value = 0;
 
-        // separa expressao em sub-operandos
         unsigned int i = 0;
+        // separa expressao em sub-operandos
         while (getline(tokenizer, operands, '+')) {
             tokens.push_back (operands);
             if (++i == 2) break;
@@ -107,10 +104,8 @@ class Analyze {
     // separa argumentos dentro de uma expressao interna a uma operacao
     void check_expression (string expression, vector<string> *argument) {
         istringstream tokenizer {expression};
-        int value = 0;
-
-        // separa expressao em sub-operandos
         unsigned int i = 0;
+        // separa expressao em sub-operandos
         while (getline(tokenizer, expression, ',')) {
             argument->push_back (expression);
             if (++i == 2) break;

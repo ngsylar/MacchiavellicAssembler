@@ -7,8 +7,20 @@ using namespace std;
 #include "instructions.hpp"
 #include "tools.hpp"
 
+// realiza a passagem unica
+void singlepass (ifstream *input_file, ofstream *output_file, string *PREP_M_NAME, string *OBJECT_M_NAME) {
+    input_file->open (*PREP_M_NAME);
+    while ( !input_file->eof() ) {
+        getline (*input_file, input_line);
+        line_singlepass();
+    } input_file->close();
+    
+    for (unsigned int i=0; i < output_code.size(); i++)
+        cout << output_code[i] << " ";
+}
+
 // realiza o pre-processamento
-void preprocessing (ifstream *input_file, ofstream *output_file, string *SOURCE_M_NAME, string *PREP_M_NAME) {
+int preprocessing (ifstream *input_file, ofstream *output_file, string *SOURCE_M_NAME, string *PREP_M_NAME) {
     input_file->open (*SOURCE_M_NAME);
     if ( input_file->is_open() ) {
         while ( !input_file->eof() ) {                      // enquanto arquivo nao acabou
@@ -19,8 +31,10 @@ void preprocessing (ifstream *input_file, ofstream *output_file, string *SOURCE_
         } input_file->close();                              // fecha arquivo fonte ao final do pre-processamento
         check_directive_END (SOURCE_M_NAME);                // verifica a existencia de diretiva END
         write_preprocessed_file (output_file, PREP_M_NAME); // escreve o arquivo pre-processado
-    } else
-        cout << endl << "ERRO: arquivo \"" << *SOURCE_M_NAME << "\" nao encontrado!" << endl;    
+    } else {
+        cout << endl << "ERRO: arquivo \"" << *SOURCE_M_NAME << "\" nao encontrado!" << endl;
+        return 0;
+    } return 1;
 }
 
 // realiza o controle do processo de montagem
@@ -31,6 +45,7 @@ void assemble () {
     preprocessing (&input_file, &output_file, &SOURCE_A_NAME, &PREP_A_NAME);
     if (NUMBER_OF_FILES == 2)
         preprocessing (&input_file, &output_file, &SOURCE_B_NAME, &PREP_B_NAME);
+    singlepass (&input_file, &output_file, &PREP_A_NAME, &OBJECT_A_NAME);
 }
 
 // inicia o programa principal
@@ -43,6 +58,5 @@ int main (int argc, char *argv[]) {
         assemble();
     } else return 0;
 
-    cout << endl << "ident: " << sizeof(Table_row) << " ; table: " << sizeof(Table) << endl;
     return 0;
 }

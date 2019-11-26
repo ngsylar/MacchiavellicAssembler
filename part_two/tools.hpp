@@ -8,6 +8,7 @@
 // bibliotecas
 #include <fstream>
 #include <sstream>
+#include <cstring>
 #include <vector>
 
 // constantes
@@ -63,17 +64,13 @@ class Table {
         vector<Table_row> t_body;
 
     // procura simbolo na tabela de simbolos
-    int search (string label, unsigned int *i) {
-        for (*i=0; *i < t_body.size(); *i++) {
-            if (label == t_body[*i].label)
+    int search (string label) {
+        for (unsigned int i=0; i < t_body.size(); i++) {
+            if (label == t_body[i].label) {
+                current = t_body[i];
+                current_i = i;
                 return 1;
-        } return 0;
-    } int search (string label) {
-        unsigned int i = 0;
-        if (search (label, &i)) {
-            current = t_body[i];
-            current_i = i;
-            return 1;
+            }
         } return 0;
     }
 
@@ -84,10 +81,9 @@ class Table {
 
     // insere um simbolo publico na tabela
     void insert_public (string label) {
-        unsigned int i = 0;
-        if (search (label, &i) == 1) {      // se simbolo ja estiver na tabela
-            if (!t_body[i].shared)
-                t_body[i].shared = true;    // declara simbolo como publico
+        if (search (label) == 1) {                  // se simbolo ja estiver na tabela
+            if (!t_body[current_i].shared)
+                t_body[current_i].shared = true;    // declara simbolo como publico
         }
         else {                              // se simbolo nao esta na tabela
             current.clear();                // cria nova linha
@@ -98,10 +94,9 @@ class Table {
     }
     // insere simbolo externo na tabela
     void insert_external (string label) {
-        unsigned int i = 0;
-        if (search (label, &i) == 1) {      // se simbolo ja estiver na tabela
-            if (!t_body[i].external)
-                t_body[i].external = true;  // declara simbolo como externo
+        if (search (label) == 1) {                  // se simbolo ja estiver na tabela
+            if (!t_body[current_i].external)
+                t_body[current_i].external = true;  // declara simbolo como externo
         }
         else {                              // se simbolo nao esta na tabela
             current.clear();                // cria nova linha
@@ -112,11 +107,10 @@ class Table {
     }
     // insere simbolo definido ou externo na tabela
     int insert_defined (string label, int value) {        
-        unsigned int i = 0;
-        if (search (label, &i) == 1) {      // se nao, se simbolo ja estiver na tabela
-            t_body[i].value = value;        // insere novo valor na tabela
-            t_body[i].defined = true;       // marca simbolo como definido
-            return 1;                       // retorna "atualizar linhas anteriores"
+        if (search (label) == 1) {              // se nao, se simbolo ja estiver na tabela
+            t_body[current_i].value = value;    // insere novo valor na tabela
+            t_body[current_i].defined = true;   // marca simbolo como definido
+            return 1;                           // retorna "atualizar linhas anteriores"
         }
         else {                              // se simbolo ainda nao estiver na tabela
             current.clear();                // cria nova linha
@@ -135,18 +129,19 @@ class Table {
         t_body.push_back (current);         // insere linha no final da tabela
     }
 
-    // insere ou atualiza um simbolo na tabela
-    int insert_called (string label, int address) {
-        unsigned int i = 0;
-        if (search (label, &i) == 1) {                  // se simbolo ja estiver na tabela
-            if (t_body[i].defined)                      // se simbolo for definido
-                return 1;                               // retorna "escrever valor definido no arquivo de saida"
-            else                                        // se simbolo for indefinido
-                t_body[i].list.push_back (address);     // insere endereco atual na lista de enderecos do simbolo
-        } else {                                // se simbolo nao esta na tabela
-            insert_undefined(label, address);   // insere simbolo no final da tabela
-        } return 0;
-    }
+    // // insere ou atualiza um simbolo na tabela
+    // int insert_called (string label, int address) {
+    //     unsigned int i = 0;
+    //     if (search (label, &i) == 1) {                  // se simbolo ja estiver na tabela
+    //         if (t_body[i].defined) {                    // se simbolo for definido
+    //             current = t_body[i];
+    //             return 1;                               // retorna "escrever valor definido no arquivo de saida"
+    //         } else                                      // se simbolo for indefinido
+    //             t_body[i].list.push_back (address);     // insere endereco atual na lista de enderecos do simbolo
+    //     } else {                                // se simbolo nao esta na tabela
+    //         insert_undefined(label, address);   // insere simbolo no final da tabela
+    //     } return 0;
+    // }
 }; static Table symbol;
 
 // transforma string com representacao decimal ou hexadecimal em inteiro

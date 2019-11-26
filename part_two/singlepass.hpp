@@ -2,8 +2,8 @@
 //    PASSAGEM UNICA
 // ----------------------------------------------------------------------------------------------------
 
-#ifndef _H_SINGLE_PASS_
-#define _H_SINGLE_PASS_
+#ifndef _H_SINGLEPASS_
+#define _H_SINGLEPASS_
 
 // tabelas de entrada para ligador
 static Table definitions_table;
@@ -108,27 +108,53 @@ void line_singlepass () {
         if (not_directive) switch ( OPCODE[token] ) {
 
             // expressoes aritmeticas
-            case ADD: process.operation (&word, &tokenizer, &token, 1); break;
-            case SUB: process.operation (&word, &tokenizer, &token, 2); break;
-            case MULT: process.operation (&word, &tokenizer, &token, 3); break;
-            case DIV: process.operation (&word, &tokenizer, &token, 4); break;
+            case ADD:
+                process.operation (&word, &tokenizer, &token, 1);
+                break;
+            case SUB:
+                process.operation (&word, &tokenizer, &token, 2);
+                break;
+            case MULT:
+                process.operation (&word, &tokenizer, &token, 3);
+                break;
+            case DIV:
+                process.operation (&word, &tokenizer, &token, 4);
+                break;
 
             // saltos
-            case JMP: process.operation (&word, &tokenizer, &token, 5); break;
-            case JMPN: process.operation (&word, &tokenizer, &token, 6); break;
-            case JMPP: process.operation (&word, &tokenizer, &token, 7); break;
-            case JMPZ: process.operation (&word, &tokenizer, &token, 8); break;
+            case JMP:
+                process.operation (&word, &tokenizer, &token, 5);
+                break;
+            case JMPN:
+                process.operation (&word, &tokenizer, &token, 6);
+                break;
+            case JMPP:
+                process.operation (&word, &tokenizer, &token, 7);
+                break;
+            case JMPZ:
+                process.operation (&word, &tokenizer, &token, 8);
+                break;
 
             // copia
-            case COPY: process.operation_COPY (&word, &tokenizer, &token); break;
+            case COPY:
+                process.operation_COPY (&word, &tokenizer, &token);
+                break;
 
             // memoria
-            case LOAD: process.operation (&word, &tokenizer, &token, 10); break;
-            case STORE: process.operation (&word, &tokenizer, &token, 11); break;
+            case LOAD:
+                process.operation (&word, &tokenizer, &token, 10);
+                break;
+            case STORE:
+                process.operation (&word, &tokenizer, &token, 11);
+                break;
 
             // entrada e saida
-            case INPUT: process.operation (&word, &tokenizer, &token, 12); break;
-            case OUTPUT: process.operation (&word, &tokenizer, &token, 13); break;
+            case INPUT:
+                process.operation (&word, &tokenizer, &token, 12);
+                break;
+            case OUTPUT:
+                process.operation (&word, &tokenizer, &token, 13);
+                break;
 
             // fim do programa
             case STOP:
