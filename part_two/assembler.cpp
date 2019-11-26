@@ -18,9 +18,8 @@ void singlepass (ifstream *input_file, ofstream *output_file, string *PREP_M_NAM
     // nota: testes
     for (unsigned int i=0; i < output_code.size(); i++)
         cout << output_code[i] << " ";
-    for (unsigned int i=0; i < symbol.t_body.size(); i++) {
-        cout << endl << symbol.t_body[i].label << endl << "val " << symbol.t_body[i].value << "\tdef " << symbol.t_body[i].defined << "\tpub " << symbol.t_body[i].shared << "\text " << symbol.t_body[i].external << endl;
-    }
+    // for (unsigned int i=0; i < symbol.t_body.size(); i++)
+    //     cout << endl << symbol.t_body[i].label << endl << "val " << symbol.t_body[i].value << "\tdef " << symbol.t_body[i].defined << "\tpub " << symbol.t_body[i].shared << "\text " << symbol.t_body[i].external << endl;
 }
 
 // realiza o pre-processamento

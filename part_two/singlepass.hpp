@@ -15,11 +15,11 @@ class Processor {
 
     // faz o processamento de operandos
     void operands (Analyze *word, istringstream *tokenizer, string *token) {
-        if (*tokenizer >> *token) {     // insere na linha de saida a expressao seguinte a operacao
-            output_code.push_back (word->check_operands (*token, program_address));
-            program_address++;          // incrementa endereco
-        }
+        int value = word->check_operands (*token, program_address); // calcula valor da expressao
+        output_code.push_back (value);                              // insere o resultado na linha de saida
+        program_address++;                                          // incrementa endereco
     }
+
     // faz o processamento de uma operacao COPY
     void operation_COPY (Analyze *word, istringstream *tokenizer, string *token) {
         vector<string> argument;
@@ -34,11 +34,20 @@ class Processor {
 
     // faz o processamento de uma operacao
     void operation (Analyze *word, istringstream *tokenizer, string *token, int operation) {
-        output_code.push_back (operation);  // insere codigo da operacao na linha de saida
-        program_address++;                  // incrementa endereco
-        operands (word, tokenizer, token);  // processa os operandos
+        output_code.push_back (operation);      // insere codigo da operacao na linha de saida
+        program_address++;                      // incrementa endereco
+        if (*tokenizer >> *token)               // pega a expressao seguinte a operacao
+            operands (word, tokenizer, token);  // processa os operandos
     }
 };
+
+// atualiza valores de chamada anteriores a definicao de simbolo
+void update_call_values () {
+    vector<int> addresses;
+    symbol.current_list (&addresses);                           // salva lista de enderecoes do simbolo atual em um vetor
+    for (unsigned int i=0; i < addresses.size(); i++)           // para cada endereco salvo na lista
+        output_code[ addresses[i] ] += symbol.current.value;    // atualizar o valor salvo no endereco
+}
 
 // trata rotulos
 void treat_labels (istringstream *tokenizer, string *token) {
@@ -54,13 +63,14 @@ void treat_labels (istringstream *tokenizer, string *token) {
             for (unsigned int i=0; i < label.size(); i++)
                 symbol.insert_external (label[i]);          // declara rotulos salvos como simbolos externos
             return;                                         // volta para sintese do codigo
-        } else {                                                    // se token for de outro tipo
-            for (unsigned int i=0; i < label.size(); i++)
-                symbol.insert_defined (label[i], program_address);  // declara rotulos salvos como definidos
-                // nota: aqui ainda precisa atualizar linhas anteriores onde o rotulo aparece
-            break;
+        } else {        // se token for de outro tipo, declara rotulos salvos como definidos
+            for (unsigned int i=0; i < label.size(); i++) {
+                if (symbol.insert_defined (label[i], program_address))
+                    update_call_values();
+            } break;
         }
 }
+
 // faz passagem unica para cada linha do arquivo pre-processado
 void line_singlepass () {
     Analyze word;
@@ -166,4 +176,5 @@ void line_singlepass () {
         } not_directive = false;
     }
 }
+
 #endif

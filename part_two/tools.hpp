@@ -60,8 +60,13 @@ class Table_row {
 class Table {
     public:
         int current_i;              // indice de uma linha na tabela
-        Table_row current;          // elemento salvo no indice
+        Table_row current;          // linha auxiliar com elemento salvo na posicao "indice" da tabela
         vector<Table_row> t_body;   // corpo completo da tabela
+
+    // retorna a lista de enderecos de um simbolo na tabela
+    void current_list (vector<int> *list) {
+        *list = t_body[current_i].list;
+    }
 
     // procura simbolo na tabela de simbolos
     int search (string label) {
@@ -110,6 +115,7 @@ class Table {
         if (search (label) == 1) {              // se nao, se simbolo ja estiver na tabela
             t_body[current_i].value = value;    // insere novo valor na tabela
             t_body[current_i].defined = true;   // marca simbolo como definido
+            current = t_body[current_i];        // salva simbolo atualizado na linha auxiliar
             return 1;                           // retorna "atualizar linhas anteriores"
         }
         else {                              // se simbolo ainda nao estiver na tabela
