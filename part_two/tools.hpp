@@ -78,7 +78,7 @@ class Table {
     }
 
     // insere valor na lista de enderecos do simbolo atual
-    void insert (int address) {
+    void insert_address (int address) {
         t_body[current_i].list.push_back(address);
     }
 

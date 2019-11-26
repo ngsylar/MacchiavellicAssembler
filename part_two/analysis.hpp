@@ -70,25 +70,25 @@ class Analyze {
         }
         // se token for rotulo
         else if (symbol.search (token)) {
-            if (symbol.current.defined)         // se achou rotulo definido
-                return symbol.current.value;    // inserir endereco na saida
-            else                                // se achou rotulo indefinido
-                symbol.insert (address);        // insere endereco na lista do simbolo
+            if (symbol.current.defined)             // se achou rotulo definido
+                return symbol.current.value;        // inserir endereco na saida
+            else                                    // se achou rotulo indefinido
+                symbol.insert_address (address);    // insere endereco na lista do simbolo
         } else {                                        // se nao achou rotulo na tabela
             symbol.insert_undefined (token, address);   // insere rotulo indefinido na tabela
         } return 0;
     }
 
-    // separa argumentos dentro de uma expressao
-    int check_expression (string expression, int address) {
-        istringstream tokenizer {expression};
+    // separa argumentos dentro de uma expressao interna a um operador
+    int check_operands (string operands, int address) {
+        istringstream tokenizer {operands};
         vector<string> tokens;
         int value = 0;
 
         // separa expressao em sub-operandos
         unsigned int i = 0;
-        while (getline(tokenizer, expression, '+')) {
-            tokens.push_back (expression);
+        while (getline(tokenizer, operands, '+')) {
+            tokens.push_back (operands);
             if (++i == 2) break;
         }
         // se houver apenas um sub-operando, analisa como rotulo ou numero
@@ -103,6 +103,18 @@ class Analyze {
         }
         return value;
     }
-};
 
+    // separa argumentos dentro de uma expressao interna a uma operacao
+    void check_expression (string expression, vector<string> *argument) {
+        istringstream tokenizer {expression};
+        int value = 0;
+
+        // separa expressao em sub-operandos
+        unsigned int i = 0;
+        while (getline(tokenizer, expression, ',')) {
+            argument->push_back (expression);
+            if (++i == 2) break;
+        }
+    }
+};
 #endif
