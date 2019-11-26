@@ -5,10 +5,29 @@
 #ifndef _H_PREPROCESSING_
 #define _H_PREPROCESSING_
 
-// verifica a existencia de diretiva END ao final do programa
-void check_directive_END (string *FILE_NAME) {
-    if ((NUMBER_OF_FILES == 2) && (cursor.end_count == 0))
-        error_handling (FILE_NAME, "NULL", 3);
+// variaveis
+static vector<string> previous_label;
+
+// inicio e final de um modulo
+void check_module (string *FILE_NAME) {
+    string name_aux;
+    name_aux.append (*FILE_NAME, 0, SOURCE_A_NAME.size()-4);
+
+    switch (NUMBER_OF_FILES) {
+        case 1:
+            cursor.module_name.push_back (name_aux);
+            break;
+        case 2:
+            if (cursor.module_name.empty()) {
+                cursor.module_name.push_back (name_aux);
+            } else {
+                if ((cursor.module_index == 2) && (cursor.module_name.size() < 2))
+                    cursor.module_name.push_back (name_aux);
+                cursor.module_index++;
+            } if (cursor.end_count == 0) {
+                error_handling (FILE_NAME, "NULL", 3);
+            } break;
+    }
 }
 
 // move SECTION DATA para baixo de SECTION TEXT
@@ -110,13 +129,18 @@ int clear_comment (string* token) {
 // verifica a existencia de rotulo nas linhas anteriores
 int previous_label_is_not_empty (string token) {
     if ( !previous_label.empty() ) {    // se houver rotulo na linha anterior
-        // se arquivo for unico ou diretiva BEGIN ja foi declarada
-        if ((NUMBER_OF_FILES == 1) || (cursor.begin_count > 0))
-            return 1;                   // retorna "achou rotulo"
-        else if (token != "BEGIN")      // caso contrario, se token atual for diferente de BEGIN
-            previous_label.clear();     // limpa rotulos encontrados e retorna "nao achou rotulo"
-        else return 1;                  // se token atual for diretiva BEGIN, retorna "achou rotulo"
-    } return 0;                         // se nao houver rotulo na linha anterior, retorna "nao achou rotulo"
+        if ((NUMBER_OF_FILES == 1) || (cursor.begin_count > 0)) {   // se arquivo for unico ou diretiva BEGIN ja foi declarada (esta dentro do modulo)
+            return 1;                                               // retorna "achou rotulo"
+        }
+        else if (token != "BEGIN") {        // caso contrario, se token atual for diferente de BEGIN (esta fora do modulo)
+            previous_label.clear();         // limpa rotulos encontrados e retorna "nao achou rotulo"
+        }
+        else { if (cursor.begin_count == 0) {                           // se token atual for diretiva BEGIN (inicio do modulo)
+                cursor.module_name.push_back (previous_label.back());   // rotulo define o nome do modulo
+                cursor.module_name.back().pop_back();                   // descarta ':'
+            } return 1;                                                 // retorna "achou rotulo"
+        }
+    } return 0;     // se nao houver rotulo na linha anterior, retorna "nao achou rotulo"
 }
 
 // inicia o pre-processamento

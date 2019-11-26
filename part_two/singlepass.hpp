@@ -14,8 +14,8 @@ class Processor {
     public:
 
     // faz o processamento de operandos
-    void operands (Analyze *word, istringstream *tokenizer, string *token) {
-        int value = word->check_operands (*token, program_address); // calcula valor da expressao
+    void operands (Analyze *word, string token) {
+        int value = word->check_argument (token, program_address);  // calcula valor da expressao
         output_code.push_back (value);                              // insere o resultado na linha de saida
         program_address++;                                          // incrementa endereco
     }
@@ -29,24 +29,24 @@ class Processor {
         if (*tokenizer >> *token)                           // pega a expressao seguinte ao codigo da operacao
             word->check_expression (*token, &argument);     // salva os argumentos
         for (unsigned int i=0; i < argument.size(); i++)    // para cada argumento
-            operands (word, tokenizer, &argument[i]);       // processa os operandos
+            operands (word, argument[i]);                   // processa os operandos
     }
 
     // faz o processamento de uma operacao
     void operation (Analyze *word, istringstream *tokenizer, string *token, int operation) {
-        output_code.push_back (operation);      // insere codigo da operacao na linha de saida
-        program_address++;                      // incrementa endereco
-        if (*tokenizer >> *token)               // pega a expressao seguinte a operacao
-            operands (word, tokenizer, token);  // processa os operandos
+        output_code.push_back (operation);  // insere codigo da operacao na linha de saida
+        program_address++;                  // incrementa endereco
+        if (*tokenizer >> *token)           // pega a expressao seguinte a operacao
+            operands (word, *token);        // processa os operandos
     }
 };
 
 // atualiza valores de chamada anteriores a definicao de simbolo
 void update_call_values () {
-    vector<int> addresses;
-    symbol.current_list (&addresses);                           // salva lista de enderecoes do simbolo atual em um vetor
-    for (unsigned int i=0; i < addresses.size(); i++)           // para cada endereco salvo na lista
-        output_code[ addresses[i] ] += symbol.current.value;    // atualizar o valor salvo no endereco
+    vector<int> adresses;
+    symbol.current_list (&adresses);                            // salva lista de enderecoes do simbolo atual em um vetor
+    for (unsigned int i=0; i < adresses.size(); i++)            // para cada endereco salvo na lista
+        output_code[ adresses[i] ] += symbol.current.value;     // atualizar o valor salvo no endereco
 }
 
 // trata rotulos

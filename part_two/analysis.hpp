@@ -77,7 +77,7 @@ class Analyze {
     }
 
     // separa argumentos dentro de uma expressao interna a um operador
-    int check_operands (string operands, int address) {
+    int check_argument (string operands, int address) {
         istringstream tokenizer {operands};
         vector<string> tokens;
         int value = 0;

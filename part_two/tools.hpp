@@ -21,14 +21,13 @@ static vector<int> output_code;         // linha de saida para arquivo objeto
 static int line_number = 0;             // contador de linhas
 static int program_address = 0;         // contador de enderecos
 
-// variaveis temporarias
-static vector<string> previous_label;
-
 // classe para marcar posicoes no processo de analise
 class Marker {
     public:
-    int begin_count = 0;    // marca o numero de diretivas BEGIN achado em um arquivo
-    int end_count = 0;      // marca se achou uma diretiva END em um arquivo
+    vector<string> module_name;     // nome do modulo
+    int module_index = 1;           // indica o modulo atual
+    int begin_count = 0;            // marca o numero de diretivas BEGIN achado em um arquivo
+    int end_count = 0;              // marca se achou uma diretiva END em um arquivo
 
     void clear () {
         begin_count = 0;
@@ -135,19 +134,12 @@ class Table {
         t_body.push_back (current);         // insere linha no final da tabela
     }
 
-    // // insere ou atualiza um simbolo na tabela
-    // int insert_called (string label, int address) {
-    //     unsigned int i = 0;
-    //     if (search (label, &i) == 1) {                  // se simbolo ja estiver na tabela
-    //         if (t_body[i].defined) {                    // se simbolo for definido
-    //             current = t_body[i];
-    //             return 1;                               // retorna "escrever valor definido no arquivo de saida"
-    //         } else                                      // se simbolo for indefinido
-    //             t_body[i].list.push_back (address);     // insere endereco atual na lista de enderecos do simbolo
-    //     } else {                                // se simbolo nao esta na tabela
-    //         insert_undefined(label, address);   // insere simbolo no final da tabela
-    //     } return 0;
-    // }
+    // limpa a tabela de simbolos
+    void clear () {
+        current_i = 0;
+        current.clear();
+        t_body.clear();
+    }
 }; static Table symbol;
 
 // transforma string com representacao decimal ou hexadecimal em inteiro

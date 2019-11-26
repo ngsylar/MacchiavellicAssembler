@@ -88,7 +88,7 @@ void assign_source_filenames (int argc, char *argv[]) {
         NUMBER_OF_FILES = 2;
 }
 
-// atribui nomes dos arquivos de saida
+// atribui nome aos arquivos de saida
 void assign_output_filenames () {
     // modulo A
     PREP_A_NAME.append (SOURCE_A_NAME, 0, SOURCE_A_NAME.size()-3);
@@ -96,13 +96,13 @@ void assign_output_filenames () {
     PREP_A_NAME.append("pre");
     OBJECT_A_NAME.append("obj");
 
+    // modulo B
     if (NUMBER_OF_FILES == 2) {
         PREP_B_NAME.append (SOURCE_B_NAME, 0, SOURCE_B_NAME.size()-3);
         OBJECT_B_NAME.append (PREP_B_NAME);
         PREP_B_NAME.append("pre");
         OBJECT_B_NAME.append("obj");
     }
-    // cout << SOURCE_A_NAME << " " << PREP_A_NAME << " " << OBJECT_A_NAME << " ";
 }
 
 #endif
