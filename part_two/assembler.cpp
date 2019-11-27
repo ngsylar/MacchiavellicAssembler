@@ -6,31 +6,21 @@ using namespace std;
 #include "filenames.hpp"
 #include "instructions.hpp"
 #include "tools.hpp"
-unsigned int balada = 0;
+
 // realiza a passagem unica
 void singlepass (ifstream *input_file, ofstream *output_file, string *PREP_M_NAME, string *OBJECT_M_NAME) {
-    input_file->open (*PREP_M_NAME);
-    while ( !input_file->eof() ) {
-        getline (*input_file, input_line);
-        line_singlepass();
-    } input_file->close();
-
-    // nota: testes
-    cout << endl << cursor.module_name[balada++] << endl;
-    for (unsigned int i=0; i < output_code.size(); i++)
-        cout << output_code[i] << " ";
-    cout << endl;
-    // for (unsigned int i=0; i < symbol.t_body.size(); i++)
-    //     cout << endl << symbol.t_body[i].label << endl << "val " << symbol.t_body[i].value << "\tdef " << symbol.t_body[i].defined << "\tpub " << symbol.t_body[i].shared << "\text " << symbol.t_body[i].external << endl;
-    output_code.clear();
-    symbol.clear();
-    program_address = 0;
+    input_file->open (*PREP_M_NAME);                // abre o arquivo pre-processado
+    while ( !input_file->eof() ) {                  // enquanto arquivo nao acabou
+        getline (*input_file, input_line);          // pega uma linha
+        line_singlepass();                          // realiza a passagem unica da linha
+    } input_file->close();                          // fecha o arquivo ao final da passagem
+    write_object_file (output_file, OBJECT_M_NAME); // escreve o arquivo objeto
 }
 
 // realiza o pre-processamento
 int preprocessing (ifstream *input_file, ofstream *output_file, string *SOURCE_M_NAME, string *PREP_M_NAME) {
-    input_file->open (*SOURCE_M_NAME);
-    if ( input_file->is_open() ) {
+    input_file->open (*SOURCE_M_NAME);                      // abre o arquivo fonte
+    if ( input_file->is_open() ) {                          // se arquivo existe e esta aberto
         while ( !input_file->eof() ) {                      // enquanto arquivo nao acabou
             getline (*input_file, input_line);              // le linha do codigo fonte
             for (auto & c: input_line) c = toupper(c);      // retira sensibilidade ao caso
@@ -47,13 +37,12 @@ int preprocessing (ifstream *input_file, ofstream *output_file, string *SOURCE_M
 
 // realiza o controle do processo de montagem
 void assemble () {
-    ifstream input_file;
-    ofstream output_file;
+    ifstream input_file;    // arquivo de entrada
+    ofstream output_file;   // arquivo de saida
 
     // modulo A
     if (preprocessing (&input_file, &output_file, &SOURCE_A_NAME, &PREP_A_NAME))
         singlepass (&input_file, &output_file, &PREP_A_NAME, &OBJECT_A_NAME);
-    else return;
 
     // modulo B
     if (NUMBER_OF_FILES == 2)
@@ -63,13 +52,19 @@ void assemble () {
 
 // inicia o programa principal
 int main (int argc, char *argv[]) {
-    cout << endl << "Algumas caracteristicas bem especificas deste montador:\n- Diretiva END interrompe automaticamente a leitura de um arquivo fonte (obs.: para mais de um arquivo de entrada)\n- Entrada: arquivos de texto com extensao \".asm\"\n- Saida: arquivos pre-processados com extensao \".pre\" e arquivos objeto \".sni\" para entrada no ligador" << endl;
+    cout << endl << ".::| MONTADOR MACCHIAVELLICO 2.0 |::." << endl;
+    cout << endl << "Algumas caracteristicas bem especificas deste montador:" << endl;
+    cout << "- Esta versao do montador NAO FAZ TESTE DE ERROS (obs.: com excecao de diretivas modulares)" << endl;
+    cout << "- Diretiva END interrompe automaticamente a leitura de um arquivo fonte (obs.: para mais de um arquivo de entrada)" << endl;
+    cout << "- Entrada: arquivos de texto com extensao \".asm\"" << endl;
+    cout << "- O primeiro arquivo inserido sera tido como PRIMEIRO MODULO ou MODULO PRINCIPAL" << endl;
+    cout << "- Saida: arquivos pre-processados com extensao \".pre\" e arquivos objeto \".obj\" para entrada no ligador apropriado" << endl;
 
     assign_source_filenames(argc, argv);    // recebe nomes dos arquivos de entrada
     if (NUMBER_OF_FILES > 0) {              // se os nomes dos arquivos forem validos
         stringSwitch();                     // inicializa palavras reservadas
         assign_output_filenames();          // atribui nomes dos arquivos de saida
-        assemble();
+        assemble();                         // poe a mao na massa com sangue nos olhos
     } else return 0;
 
     return 0;

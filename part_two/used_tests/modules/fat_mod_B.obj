@@ -1,0 +1,7 @@
+H: MOD_B 1
+H: 11
+H: informacao de realocacao aqui
+U: FAT 9+
+U: N 3+ 5+
+D: MOD_B 0
+T: 11 10 3 0 11 0 10 10 5 0 0

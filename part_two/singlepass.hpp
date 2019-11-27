@@ -5,9 +5,50 @@
 #ifndef _H_SINGLEPASS_
 #define _H_SINGLEPASS_
 
-// tabelas de entrada para ligador
-static Table definitions_table;
-static Table usage_table;
+// escreve o codigo objeto nao ligado
+void write_object_file (ofstream *output_file, string *FILE_NAME) {
+    unsigned int module_index;              // guarda o indice do modulo atual
+    string module_name;                     // guarda o nome do modulo atual
+    Table usage_table, definitions_table;   // tabelas de uso e de definicao
+    output_file->open (*FILE_NAME);
+
+    // define nome e indice do modulo
+    if (NUMBER_OF_FILES == 1)
+        module_index = cursor.module_index-1;
+    else
+        module_index = cursor.module_index-2;
+    module_name = cursor.module_name[ module_index ];
+    
+    // escreve cabecalho
+    *output_file << "H: " << module_name;
+    if (NUMBER_OF_FILES == 2)
+        *output_file << " " << module_index;
+    *output_file << endl << "H: " << output_code.size() << endl;
+    *output_file << "H: informacao de realocacao aqui" << endl;
+
+    // escreve tabelas de uso e definicoes
+    if (NUMBER_OF_FILES == 2) {
+        symbol.make_link_tables (&usage_table, &definitions_table);
+        for (unsigned int i=0; i < usage_table.size(); i++)
+            *output_file << "U: " << usage_table.mailing_list(i) << endl;
+        for (unsigned int i=0; i < definitions_table.size(); i++)
+            *output_file << "D: " << definitions_table.symbol_value(i) << endl;
+    }
+
+    // escreve codigo objeto
+    *output_file << "T: ";
+    for (unsigned int i=0; i < output_code.size(); i++) {
+        *output_file << output_code[i];
+        if (i+1 != output_code.size())
+            *output_file << " ";
+    }
+
+    // limpeza de variaveis
+    output_file->close();
+    output_code.clear();
+    symbol.clear();
+    program_address = 0;
+}
 
 // classe para processamento de operacoes
 class Processor {

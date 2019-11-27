@@ -36,22 +36,20 @@ void assign_source_filenames (int argc, char *argv[]) {
             SOURCE_B_NAME = argv[2];    // nome do terceiro modulo recebe terceiro argumento
         }
     } else {                                        // se inicio so recebeu um argumento
-        SOURCE_A_NAME = "used_tests\\modules\\test1_A.asm";
-        SOURCE_B_NAME = "used_tests\\modules\\test1_B.asm";
-        // cout << "Insira o nome dos arquivos: ";     // pede para usuario inserir nome dos arquivos
-        // cin >> SOURCE_A_NAME;                       // modulo A recebe nome do buffer
+        cout << "\nInsira o nome dos arquivos: ";   // pede para usuario inserir nome dos arquivos
+        cin >> SOURCE_A_NAME;                       // modulo A recebe nome do buffer
 
-        // try {
-        //     throw getchar();                        // recebe um caractere do buffer
-        // } catch (int next_char) {                   // se nao for quebra de linha
-        //     while (next_char == ASCII_SPACE)        // se for espaco
-        //         next_char = getchar();              // ignora todos os espacos
-        //     // se achar caractere diferente de quebra de linha
-        //     while ((next_char != ASCII_LINEFEED) && (next_char != ASCII_SPACE)) {
-        //         SOURCE_B_NAME += (char)next_char;   // modulo B recebe nome do buffer
-        //         next_char = getchar();              // caractere a caractere, ate encontrar quebra de linha ou espaco
-        //     }
-        // }
+        try {
+            throw getchar();                        // recebe um caractere do buffer
+        } catch (int next_char) {                   // se nao for quebra de linha
+            while (next_char == ASCII_SPACE)        // se for espaco
+                next_char = getchar();              // ignora todos os espacos
+            // se achar caractere diferente de quebra de linha
+            while ((next_char != ASCII_LINEFEED) && (next_char != ASCII_SPACE)) {
+                SOURCE_B_NAME += (char)next_char;   // modulo B recebe nome do buffer
+                next_char = getchar();              // caractere a caractere, ate encontrar quebra de linha ou espaco
+            }
+        }
     } setbuf (stdin, NULL);     // limpar demais argumentos, se existirem
 
     // confere extensao dos arquivos

@@ -21,11 +21,33 @@ static vector<int> output_code;         // linha de saida para arquivo objeto
 static int line_number = 0;             // contador de linhas
 static int program_address = 0;         // contador de enderecos
 
+// transforma int em string
+string itos (int number) {
+    stringstream token;
+    token << number;
+    string word = token.str();
+    return word;
+}
+
+// transforma string com representacao decimal ou hexadecimal em inteiro
+int hdstoi (string token) {
+    int number;                                     // valor de retorno
+
+    if ((token[0] == '0') && (token[1] == 'x')) {   // se for hexadecimal
+        char stoc[ token.size() ];                  // cria array de char com tamanho da string
+        strcpy(stoc, token.c_str());                // copia string para o array de char
+        number = strtol(stoc, NULL, 16);            // numero recebe array convertido em inteiro
+    } else                                          // se for decimal
+        number = stoi(token);                       // numero recebe string convertida em inteiro
+
+    return number;                                  // retorna numero
+}
+
 // classe para marcar posicoes no processo de analise
 class Marker {
     public:
     vector<string> module_name;     // nome do modulo
-    int module_index = 1;           // indica o modulo atual
+    unsigned int module_index = 1;  // indica o modulo atual
     int begin_count = 0;            // marca o numero de diretivas BEGIN achado em um arquivo
     int end_count = 0;              // marca se achou uma diretiva END em um arquivo
 
@@ -62,7 +84,29 @@ class Table {
         Table_row current;          // linha auxiliar com elemento salvo na posicao "indice" da tabela
         vector<Table_row> t_body;   // corpo completo da tabela
 
-    // retorna a lista de enderecos de um simbolo na tabela
+    // retorna tamanho da tabela de simbolos
+    int size () {
+        return t_body.size();
+    }
+    
+    // retorna uma string com o simbolo "indice" na tabela e seu valor definido
+    string symbol_value (unsigned int index) {
+        string value;
+        value.append (t_body[index].label + " " + itos( t_body[index].value ));
+        return value;
+    }
+
+    // retorna uma string com os enderecos do simbolo "indice" na tabela
+    string mailing_list (unsigned int index) {
+        string list;
+        list.append (t_body[index].label + " ");
+        for (unsigned int i=0; i < t_body[index].list.size(); i++)
+            list.append ( itos( t_body[index].list[i] ) + "+ ");
+        list.pop_back();
+        return list;
+    }
+
+    // retorna a lista de enderecos do simbolo atual na tabela
     void current_list (vector<int> *list) {
         *list = t_body[current_i].list;
     }
@@ -134,6 +178,15 @@ class Table {
         t_body.push_back (current);         // insere linha no final da tabela
     }
 
+    // cria uma tabela com os simbolos externos e outra com os simbolos publicos
+    void make_link_tables (Table *usage_table, Table *definitions_table) {
+        for (unsigned int i=0; i < t_body.size(); i++) {            // enquanto tabela nao acabou
+            if (t_body[i].external)                                 // se simbolo atual eh externo
+                usage_table->t_body.push_back (t_body[i]);          // insere simbolo na tabela de uso
+            else if (t_body[i].shared)                              // se simbolo atual eh publico
+                definitions_table->t_body.push_back (t_body[i]);    // insere simbolo na tabela de definicoes
+        }
+    }
     // limpa a tabela de simbolos
     void clear () {
         current_i = 0;
@@ -141,20 +194,6 @@ class Table {
         t_body.clear();
     }
 }; static Table symbol;
-
-// transforma string com representacao decimal ou hexadecimal em inteiro
-int hdstoi (string token) {
-    int number;                                     // valor de retorno
-
-    if ((token[0] == '0') && (token[1] == 'x')) {   // se for hexadecimal
-        char stoc[ token.size() ];                  // cria array de char com tamanho da string
-        strcpy(stoc, token.c_str());                // copia string para o array de char
-        number = strtol(stoc, NULL, 16);            // numero recebe array convertido em inteiro
-    } else                                          // se for decimal
-        number = stoi(token);                       // numero recebe string convertida em inteiro
-
-    return number;                                  // retorna numero
-}
 
 // analise de codigo
 #include "analysis.hpp"
