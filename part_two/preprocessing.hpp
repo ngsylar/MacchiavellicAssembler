@@ -10,22 +10,22 @@ static vector<string> previous_label;
 
 // inicio e final de um modulo
 void check_module (string *FILE_NAME) {
-    string name_aux;
+    string name_aux;    // variavel auxiliar para definir o nome do modulo atual
     name_aux.append (*FILE_NAME, 0, SOURCE_A_NAME.size()-4);
 
     switch (NUMBER_OF_FILES) {
-        case 1:
-            cursor.module_name.push_back (name_aux);
+        case 1:                                         // se arquivo eh unico
+            cursor.module_name.push_back (name_aux);    // nome do modulo recebe o nome do arquivo
             break;
-        case 2:
-            if (cursor.module_name.empty()) {
-                cursor.module_name.push_back (name_aux);
+        case 2:                                         // se existe mais de um modulo
+            if (cursor.module_name.empty()) {               // se o nome do modulo A ainda nao foi definido
+                cursor.module_name.push_back (name_aux);    // nome do modulo A recebe o nome do arquivo
             } else {
-                if ((cursor.module_index == 2) && (cursor.module_name.size() < 2))
-                    cursor.module_name.push_back (name_aux);
-                cursor.module_index++;
-            } if (cursor.end_count == 0) {
-                error_handling (FILE_NAME, "NULL", 3);
+                if ((cursor.module_index == 2) && (cursor.module_name.size() < 2))  // se o nome do modulo B ainda nao foi definido
+                    cursor.module_name.push_back (name_aux);                        // nome do modulo B recebe o nome do arquivo
+            } cursor.module_index++;                    // contador vai para o proximo modulo
+            if (cursor.end_count == 0) {                // se diretiva END nao foi declarada
+                error_handling (FILE_NAME, "NULL", 3);  // erro
             } break;
     }
 }
