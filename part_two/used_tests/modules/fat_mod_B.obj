@@ -1,6 +1,6 @@
 H: MOD_B 1
-H: 11
-H: informacao de realocacao aqui
+H: 10
+H: 01000001000
 U: FAT 9+
 U: N 3+ 5+
 D: MOD_B 0

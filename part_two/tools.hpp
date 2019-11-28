@@ -18,6 +18,7 @@
 static string input_line;               // linha lida de um arquivo de entrada
 static vector<string> output_line;      // linha de saida para arquivo pre-processado
 static vector<int> output_code;         // linha de saida para arquivo objeto
+static vector<int> bitmap;              // mapa de bits para um modulo
 static int line_number = 0;             // contador de linhas
 static int program_address = 0;         // contador de enderecos
 

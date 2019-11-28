@@ -23,8 +23,11 @@ void write_object_file (ofstream *output_file, string *FILE_NAME) {
     *output_file << "H: " << module_name;
     if (NUMBER_OF_FILES == 2)
         *output_file << " " << module_index;
-    *output_file << endl << "H: " << output_code.size() << endl;
-    *output_file << "H: informacao de realocacao aqui" << endl;
+    *output_file << endl << "H: " << output_code.size()-1 << endl;
+    *output_file << "H: ";
+    for (unsigned int i=0; i < bitmap.size(); i++)
+        *output_file << bitmap[i];
+    *output_file << endl;
 
     // escreve tabelas de uso e definicoes
     if (NUMBER_OF_FILES == 2) {
@@ -46,6 +49,7 @@ void write_object_file (ofstream *output_file, string *FILE_NAME) {
     // limpeza de variaveis
     output_file->close();
     output_code.clear();
+    bitmap.clear();
     symbol.clear();
     program_address = 0;
 }
@@ -58,6 +62,10 @@ class Processor {
     void operands (Analyze *word, string token) {
         int value = word->check_argument (token, program_address);  // calcula valor da expressao
         output_code.push_back (value);                              // insere o resultado na linha de saida
+        if (symbol.current.external)                                // se simbolo eh externo
+            bitmap.push_back(0);                                    // valor eh desconhecido
+        else                                                        // se simbolo nao eh externo
+            bitmap.push_back(1);                                    // valor eh relativo
         program_address++;                                          // incrementa endereco
     }
 
@@ -65,6 +73,7 @@ class Processor {
     void operation_COPY (Analyze *word, istringstream *tokenizer, string *token) {
         vector<string> argument;
         output_code.push_back(9);   // insere codigo da operacao na linha de saida
+        bitmap.push_back(0);        // codigo de operacao eh valor absoluto
         program_address++;          // incrementa endereco
 
         if (*tokenizer >> *token)                           // pega a expressao seguinte ao codigo da operacao
@@ -76,6 +85,7 @@ class Processor {
     // faz o processamento de uma operacao
     void operation (Analyze *word, istringstream *tokenizer, string *token, int operation) {
         output_code.push_back (operation);  // insere codigo da operacao na linha de saida
+        bitmap.push_back(0);                // codigo de operacao eh valor absoluto
         program_address++;                  // incrementa endereco
         if (*tokenizer >> *token)           // pega a expressao seguinte a operacao
             operands (word, *token);        // processa os operandos
@@ -129,11 +139,13 @@ void line_singlepass () {
 
             case D_SPACE:                       // DIRETIVA SPACE
                 if ((tokenizer >> token) && word.check_number (token, false)) {
-                    for (int i=0; i < word.number; i++)     // pega proximo token e extrai o valor
+                    for (int i=0; i < word.number; i++) {   // pega proximo token e extrai o valor
                         output_code.push_back(0);           // reserva "valor" espacos na linha de saida
-                    program_address += word.number;         // incrementa endereco em "valor" posicoes
+                        bitmap.push_back(0);                // variaveis tem valor absoluto
+                    } program_address += word.number;       // incrementa endereco em "valor" posicoes
                 } else {                        // se nao foram passados argumentos
                     output_code.push_back(0);   // reserva apenas um espaco
+                    bitmap.push_back(0);        // variavel tem valor absoluto
                     program_address++;          // incrementa endereco
                 } break;
 
@@ -142,7 +154,8 @@ void line_singlepass () {
                     output_code.push_back (word.number);    // pega proximo token e escreve o valor na linha de saida
                 } else {                        // em caso de erro
                     output_code.push_back(0);   // escreve zero na linha de saida
-                } program_address++;            // incrementa endereco
+                } bitmap.push_back(0);          // variaveis tem valor absoluto
+                program_address++;              // incrementa endereco
                 break;
 
             case D_PUBLIC:                          // DIRETIVA PUBLIC
@@ -210,6 +223,7 @@ void line_singlepass () {
             // fim do programa
             case STOP:
                 output_code.push_back(14);  // insere codigo da operacao na linha de saida
+                bitmap.push_back(0);        // codigo de operacao eh valor absoluto
                 program_address++;          // incrementa endereco
                 break;
 

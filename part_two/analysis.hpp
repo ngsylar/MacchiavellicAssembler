@@ -90,6 +90,7 @@ class Analyze {
         }
         // se houver apenas um sub-operando, analisa como rotulo ou numero
         if (tokens.size() == 1) {
+            symbol.current.clear();     // necessario para informacao de realocacao
             value += check_operand (tokens.front(), address, false);
         }
         // se houver mais de um operando, analisa um rotulo e depois um numero natural
