@@ -62,9 +62,9 @@ class Processor {
     void operands (Analyze *word, string token) {
         int value = word->check_argument (token, program_address);  // calcula valor da expressao
         output_code.push_back (value);                              // insere o resultado na linha de saida
-        if (symbol.current.external)                                // se simbolo eh externo
+        if (symbol.current.external)                                // se operando eh simbolo eh externo
             bitmap.push_back(0);                                    // valor eh desconhecido
-        else                                                        // se simbolo nao eh externo
+        else                                                        // se operando eh de outro tipo
             bitmap.push_back(1);                                    // valor eh relativo
         program_address++;                                          // incrementa endereco
     }
@@ -154,7 +154,7 @@ void line_singlepass () {
                     output_code.push_back (word.number);    // pega proximo token e escreve o valor na linha de saida
                 } else {                        // em caso de erro
                     output_code.push_back(0);   // escreve zero na linha de saida
-                } bitmap.push_back(0);          // variaveis tem valor absoluto
+                } bitmap.push_back(0);          // constante tem valor absoluto
                 program_address++;              // incrementa endereco
                 break;
 
