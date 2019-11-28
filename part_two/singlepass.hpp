@@ -20,10 +20,8 @@ void write_object_file (ofstream *output_file, string *FILE_NAME) {
     module_name = cursor.module_name[ module_index ];
     
     // escreve cabecalho
-    *output_file << "H: " << module_name;
-    if (NUMBER_OF_FILES == 2)
-        *output_file << " " << module_index;
-    *output_file << endl << "H: " << output_code.size()-1 << endl;
+    *output_file << "H: " << module_name << endl;
+    *output_file << "H: " << output_code.size() << endl;
     *output_file << "H: ";
     for (unsigned int i=0; i < bitmap.size(); i++)
         *output_file << bitmap[i];

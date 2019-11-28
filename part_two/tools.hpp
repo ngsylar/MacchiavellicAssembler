@@ -86,7 +86,7 @@ class Table {
         vector<Table_row> t_body;   // corpo completo da tabela
 
     // retorna tamanho da tabela de simbolos
-    int size () {
+    unsigned int size () {
         return t_body.size();
     }
     
